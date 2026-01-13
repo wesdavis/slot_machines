@@ -1,105 +1,74 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-/**
- * REEL STRIPS
- * Must be identical to provablyFairSpin.ts to ensure simulation accuracy.
- */
 const REEL_STRIPS = [
-  [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4],
-  [1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
-  [2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 3, 4, 5, 6],
-  [3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 3, 4, 5, 6, 7],
-  [4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 4, 5, 6, 7, 0]
+  [0, 3, 5, 6, 5, 3, 7, 5, 6, 0, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 0, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
+  [1, 3, 5, 6, 5, 3, 7, 5, 6, 1, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 1, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
+  [2, 3, 5, 6, 5, 3, 7, 5, 6, 2, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 2, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
+  [1, 3, 5, 6, 5, 3, 7, 5, 6, 1, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 1, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
+  [0, 3, 5, 6, 5, 3, 7, 5, 6, 0, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 0, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6]
 ];
 
-/**
- * PAYLINE DEFINITIONS
- */
 const PAYLINES = [
-  [1, 1, 1, 1, 1], // Middle
-  [0, 0, 0, 0, 0], // Top
-  [2, 2, 2, 2, 2], // Bottom
-  [0, 1, 2, 1, 0], // V-Shape
-  [2, 1, 0, 1, 2]  // Inverted V
+  [1, 1, 1, 1, 1], [0, 0, 0, 0, 0], [2, 2, 2, 2, 2], [0, 1, 2, 1, 0], [2, 1, 0, 1, 2]
 ];
 
-/**
- * SIMULATED SPIN ENGINE
- * Optimized for high-speed loops (no database calls).
- */
+function getS5Value(betAmount: number) {
+  const rand = Math.random();
+  if (rand < 0.05) return betAmount * 20;
+  if (rand < 0.20) return betAmount * 5;
+  return betAmount * 1.5;
+}
+
 function runSimulatedSpin(betAmount: number) {
   const positions: number[] = [];
-  const WILD = 7;
-  const SCATTER = 4;
+  const WILD = 7, SCATTER_S5 = 4;
   const betPerLine = betAmount / 5;
-  let totalWin = 0;
+  let win = 0;
 
-  // 1. Generate random grid result
   for (let i = 0; i < 5; i++) {
-    const stopIndex = Math.floor(Math.random() * REEL_STRIPS[i].length);
-    for (let row = 0; row < 3; row++) {
-      positions.push(REEL_STRIPS[i][(stopIndex + row) % REEL_STRIPS[i].length]);
-    }
+    const stop = Math.floor(Math.random() * REEL_STRIPS[i].length);
+    for (let r = 0; r < 3; r++) positions.push(REEL_STRIPS[i][(stop + r) % REEL_STRIPS[i].length]);
   }
 
-  // 2. Check Line Wins
   PAYLINES.forEach((line) => {
-    const symbolsOnLine = line.map((row, reel) => positions[reel * 3 + row]);
-    let firstSymbol = symbolsOnLine[0] === WILD ? symbolsOnLine.find(s => s !== WILD && s !== SCATTER) : symbolsOnLine[0];
-    
-    if (firstSymbol === SCATTER || firstSymbol === undefined) return;
-
-    let matchCount = 1;
+    const syms = line.map((row, reel) => positions[reel * 3 + row]);
+    let first = syms[0] === WILD ? syms.find(s => s !== WILD && s !== SCATTER_S5) : syms[0];
+    if (first === SCATTER_S5 || first === undefined) return;
+    let matches = 1;
     for (let i = 1; i < 5; i++) {
-      if (symbolsOnLine[i] === firstSymbol || symbolsOnLine[i] === WILD) matchCount++;
-      else break;
+        if (syms[i] === first || syms[i] === WILD) matches++;
+        else break;
     }
-
-    const payTable: Record<number, number> = { 3: 5, 4: 20, 5: 100 };
-    if (payTable[matchCount]) totalWin += betPerLine * payTable[matchCount];
+    const payTable: Record<number, number> = { 3: 2, 4: 10, 5: 50 };
+    if (payTable[matches]) win += betPerLine * payTable[matches];
   });
 
-  // 3. Check Scatter Trigger
-  const scatterCount = positions.filter(s => s === SCATTER).length;
-  const isFeature = scatterCount >= 3;
-  if (isFeature) totalWin += betAmount * 10;
-
-  return { totalWin, isFeature };
+  const s5Count = positions.filter(s => s === SCATTER_S5).length;
+  const triggered = s5Count >= 6;
+  if (triggered) {
+    for (let i = 0; i < s5Count; i++) win += getS5Value(betAmount);
+  }
+  return { win, triggered };
 }
 
 Deno.serve(async (req) => {
   try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-
-    // Verification check for Admin access
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-
     const body = await req.json();
     const iterations = body.iterations || 1000000;
-    const betAmount = body.betAmount || 5;
+    const bet = body.betAmount || 5;
+    let totalBet = 0, totalWon = 0, triggers = 0;
 
-    let totalBet = 0;
-    let totalWon = 0;
-    let featureTriggers = 0;
-
-    // Simulation Loop
     for (let i = 0; i < iterations; i++) {
-      totalBet += betAmount;
-      const { totalWin, isFeature } = runSimulatedSpin(betAmount);
-      totalWon += totalWin;
-      if (isFeature) featureTriggers++;
+      totalBet += bet;
+      const res = runSimulatedSpin(bet);
+      totalWon += res.win;
+      if (res.triggered) triggers++;
     }
-
-    const rtp = (totalWon / totalBet) * 100;
 
     return Response.json({
       iterations,
-      totalBet,
-      totalWon,
-      rtp: rtp.toFixed(2) + "%",
-      featureFrequency: `1 in ${(iterations / featureTriggers).toFixed(0)} spins`,
-      houseEdge: (100 - rtp).toFixed(2) + "%"
+      rtp: ((totalWon / totalBet) * 100).toFixed(2) + "%",
+      featureFrequency: `1 in ${(iterations / triggers).toFixed(0)} spins`
     });
   } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
