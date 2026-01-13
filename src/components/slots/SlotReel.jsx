@@ -45,7 +45,7 @@ export default function SlotReel({ positions, isSpinning, reelIndex, onSpinCompl
                             {[...Array(6)].map((_, i) => (
                                 <div
                                     key={i}
-                                    className="w-16 sm:w-20 h-16 sm:h-20 flex items-center justify-center text-4xl sm:text-5xl"
+                                    className="w-16 sm:w-20 h-16 sm:h-20 flex items-center justify-center text-2xl sm:text-3xl font-bold text-amber-400"
                                 >
                                     {SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]}
                                 </div>
