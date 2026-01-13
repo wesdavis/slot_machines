@@ -1,9 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-/**
- * REEL STRIPS
- * S1-S7 = 0-6, S5 (9mm) = 4, WILD (Bada Bing) = 7
- */
 const REEL_STRIPS = [
   [0, 3, 5, 6, 5, 3, 7, 5, 6, 0, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 0, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
   [1, 3, 5, 6, 5, 3, 7, 5, 6, 1, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 1, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
@@ -29,13 +25,6 @@ function generateServerSeed(length = 32) {
     return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function getS5Value(betAmount: number) {
-  const rand = Math.random();
-  if (rand < 0.05) return betAmount * 20; 
-  if (rand < 0.20) return betAmount * 5;  
-  return betAmount * 1.5;                
-}
-
 function checkWins(positions: number[], betAmount = 1) {
     let totalWin = 0;
     const winDetails: any[] = [];
@@ -53,7 +42,7 @@ function checkWins(positions: number[], betAmount = 1) {
             else break;
         }
 
-        const payTable: Record<number, number> = { 3: 2, 4: 10, 5: 50 };
+        const payTable = { 3: 2, 4: 10, 5: 50 };
         if (payTable[matches]) {
             const payout = betPerLine * payTable[matches];
             totalWin += payout;
@@ -62,7 +51,7 @@ function checkWins(positions: number[], betAmount = 1) {
     });
 
     const s5Count = positions.filter(s => s === SCATTER_S5).length;
-    const isHoldAndWinTriggered = s5Count >= 6;
+    const isHoldAndWinTriggered = s5Count >= 6; // Confirmed 6 symbols for trigger
 
     return { totalWin, winDetails, isHoldAndWinTriggered, s5Count };
 }
@@ -110,16 +99,15 @@ Deno.serve(async (req) => {
             let newSymbolsAdded = 0;
 
             for (let i = 0; i < 15; i++) {
-                if (nextGrid[i] !== 4) { // Only roll for empty spots
+                if (nextGrid[i] !== 4) { // roll only for non-9mm spots
                     const randVal = parseInt(combinedHash.substring((i % 8) * 4, (i % 8) * 4 + 4), 16) % 100;
-                    if (randVal < 15) { // 15% probability to hit a new sticky 9mm
+                    if (randVal < 15) { 
                         nextGrid[i] = 4;
                         newSymbolsAdded++;
                     }
                 }
             }
 
-            // Calculate total win from all 9mm symbols on board
             const finalS5Count = nextGrid.filter(s => s === 4).length;
             const currentBonusWin = finalS5Count * (bet * 1.5);
 
@@ -127,7 +115,7 @@ Deno.serve(async (req) => {
                 reelPositions: nextGrid,
                 newSymbolsAdded,
                 currentBonusWin,
-                isComplete: !nextGrid.includes(-1) && newSymbolsAdded === 0
+                isComplete: !nextGrid.includes(0) && nextGrid.every(s => s === 4)
             });
         }
 
