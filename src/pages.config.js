@@ -1,10 +1,10 @@
-import SlotGame from './pages/SlotGame';
 import AdminDashboard from './pages/AdminDashboard';
+import SlotGame from './pages/SlotGame';
 
 
 export const PAGES = {
-    "SlotGame": SlotGame,
     "AdminDashboard": AdminDashboard,
+    "SlotGame": SlotGame,
 }
 
 export const pagesConfig = {

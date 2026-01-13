@@ -7,7 +7,7 @@ import { Gamepad2, ShieldCheck, Info, Sparkles } from 'lucide-react';
 import SlotMachine from '@/components/slots/SlotMachine';
 import VerificationTool from '@/components/slots/VerificationTool';
 
-const SYMBOLS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
+const SYMBOLS = ['Tony', 'Paulie', 'Silvio', 'Gabagool', '9mm', 'AJ', 'Meadow', 'BadaBing'];
 
 export default function SlotGame() {
     const [lastSpinData, setLastSpinData] = useState(null);

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Loader2, Sparkles, RotateCcw, Dices, Trophy } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import SlotReel, { SYMBOLS } from './SlotReel';
 import SpinDetails from './SpinDetails';
+import BonusOverlay from './BonusOverlay';
 
 export default function SlotMachine({ onSpinComplete }) {
     const [isSpinning, setIsSpinning] = useState(false);
@@ -22,6 +23,8 @@ export default function SlotMachine({ onSpinComplete }) {
     const [isFeatureTriggered, setIsFeatureTriggered] = useState(false);
     const [loading, setLoading] = useState(false);
     const [betAmount, setBetAmount] = useState(1);
+    const [showBonus, setShowBonus] = useState(false);
+    const [activePaylines, setActivePaylines] = useState([]);
 
     // Initialize server seed on mount
     useEffect(() => {
@@ -52,6 +55,8 @@ export default function SlotMachine({ onSpinComplete }) {
         setWinAmount(0);
         setWinDetails([]);
         setIsFeatureTriggered(false);
+        setActivePaylines([]);
+        setShowBonus(false);
 
         try {
             const response = await base44.functions.invoke('provablyFairSpin', {
@@ -78,6 +83,15 @@ export default function SlotMachine({ onSpinComplete }) {
                 setWinDetails(details);
                 setIsFeatureTriggered(featureTriggered);
                 setNonce(prev => prev + 1);
+
+                // Extract and animate paylines
+                const lineWins = details.filter(d => d.type === 'line');
+                setActivePaylines(lineWins.map(w => w.line));
+
+                // Show bonus overlay if feature triggered
+                if (featureTriggered) {
+                    setTimeout(() => setShowBonus(true), 500);
+                }
 
                 // Get new server seed for next spin
                 initializeServerSeed();
@@ -143,10 +157,55 @@ export default function SlotMachine({ onSpinComplete }) {
                         ))}
                     </div>
 
-                    {/* Payline indicator */}
-                    <div className="absolute left-2 right-2 top-1/2 -translate-y-1/2 h-px bg-amber-400/50 pointer-events-none" />
+                    {/* Payline indicators */}
+                    <AnimatePresence>
+                        {activePaylines.map((lineNum, idx) => {
+                            const lineConfigs = {
+                                0: { top: '50%', className: '-translate-y-1/2' },
+                                1: { top: '16.66%', className: '' },
+                                2: { top: '83.33%', className: '' },
+                                3: { path: 'M 0,16.66 L 25,50 L 50,83.33 L 75,50 L 100,16.66' },
+                                4: { path: 'M 0,83.33 L 25,50 L 50,16.66 L 75,50 L 100,83.33' }
+                            };
+                            const config = lineConfigs[lineNum];
+                            
+                            return config.path ? (
+                                <motion.svg
+                                    key={lineNum}
+                                    className="absolute inset-0 w-full h-full pointer-events-none"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: [0, 1, 0] }}
+                                    transition={{ duration: 1.5, repeat: 2, delay: idx * 0.2 }}
+                                >
+                                    <path
+                                        d={config.path}
+                                        stroke="#fbbf24"
+                                        strokeWidth="3"
+                                        fill="none"
+                                        vectorEffect="non-scaling-stroke"
+                                    />
+                                </motion.svg>
+                            ) : (
+                                <motion.div
+                                    key={lineNum}
+                                    className={`absolute left-2 right-2 h-1 bg-amber-400 pointer-events-none rounded-full ${config.className}`}
+                                    style={{ top: config.top }}
+                                    initial={{ opacity: 0, scaleX: 0 }}
+                                    animate={{ opacity: [0, 1, 0], scaleX: [0, 1, 1] }}
+                                    transition={{ duration: 1.5, repeat: 2, delay: idx * 0.2 }}
+                                />
+                            );
+                        })}
+                    </AnimatePresence>
                 </div>
             </div>
+
+            {/* Bonus Overlay */}
+            <BonusOverlay
+                isTriggered={showBonus}
+                winDetails={winDetails}
+                onClose={() => setShowBonus(false)}
+            />
 
             {/* Controls */}
             <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-amber-500/20 space-y-4">
@@ -214,9 +273,9 @@ export default function SlotMachine({ onSpinComplete }) {
                         {winDetails.map((detail, i) => (
                             <div key={i} className="flex justify-between text-sm text-slate-300 mt-1">
                                 <span>
-                                    {detail.type === 'line' ? '🎯 Line Win' : '✨ Bonus'} - {detail.symbol} x{detail.count}
+                                    {detail.type === 'line' ? `🎯 Line ${detail.line + 1}` : '✨ Hold & Win'} - {detail.symbol} {detail.type === 'line' ? `x${detail.count}` : ''}
                                 </span>
-                                <span className="text-green-400">{detail.payout}x</span>
+                                <span className="text-green-400">{detail.payout.toFixed(2)}x</span>
                             </div>
                         ))}
                         {isFeatureTriggered && (

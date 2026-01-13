@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const SYMBOLS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
+const SYMBOLS = ['Tony', 'Paulie', 'Silvio', 'Gabagool', '9mm', 'AJ', 'Meadow', 'BadaBing'];
 
 export default function SlotReel({ positions, isSpinning, reelIndex, onSpinComplete }) {
     const [displaySymbols, setDisplaySymbols] = useState([0, 1, 2]);
