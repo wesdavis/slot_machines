@@ -1,6 +1,20 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// SHA-256 hash function
+/**
+ * PROFESSIONAL REEL STRIPS (10 stops each)
+ * 0-6 = Low/High Pay Symbols (S1-S7)
+ * 7   = WILD (S8)
+ * 4   = FEATURE TRIGGER (9mm / S5)
+ */
+const REEL_STRIPS = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 0, 1], // Reel 1
+    [1, 2, 3, 4, 5, 6, 7, 0, 1, 2], // Reel 2
+    [2, 3, 4, 5, 6, 7, 0, 1, 2, 3], // Reel 3
+    [3, 4, 5, 6, 7, 0, 1, 2, 3, 4], // Reel 4
+    [4, 5, 6, 7, 0, 1, 2, 3, 4, 5]  // Reel 5
+];
+
+// SHA-256 hash function for Provably Fair compliance
 async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
@@ -8,62 +22,77 @@ async function sha256(message) {
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Generate cryptographically secure random string
+// Generate cryptographically secure random string for Server Seed
 function generateServerSeed(length = 32) {
     const array = new Uint8Array(length);
     crypto.getRandomValues(array);
     return Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Map hash to reel positions (5 reels x 3 rows = 15 positions)
-function hashToReelPositions(hash, symbolCount = 8) {
+/** * Maps the 64-char SHA-256 hash to 5 specific reel stop indices.
+ * Each reel uses 8 characters of the hash for high-entropy randomness.
+ */
+function hashToReelPositions(hash) {
     const positions = [];
-    // Use different parts of the 64-char hash for each position
-    for (let i = 0; i < 15; i++) {
-        // Take 4 chars at a time, cycling through the hash
-        const startIndex = (i * 4) % 56;
-        const hexPart = hash.substring(startIndex, startIndex + 4);
-        const num = parseInt(hexPart, 16);
-        positions.push(num % symbolCount);
+    const stops = [];
+    
+    for (let i = 0; i < 5; i++) {
+        // Extract 8 hex chars per reel
+        const startIndex = i * 8;
+        const hexPart = hash.substring(startIndex, startIndex + 8);
+        const stopIndex = parseInt(hexPart, 16) % REEL_STRIPS[i].length;
+        stops.push(stopIndex);
+
+        // Generate the 3 symbols visible on the reel (3 rows)
+        for (let row = 0; row < 3; row++) {
+            const symbolIndex = (stopIndex + row) % REEL_STRIPS[i].length;
+            positions.push(REEL_STRIPS[i][symbolIndex]);
+        }
     }
-    return positions;
+    return { positions, stops };
 }
 
-// Check wins on the grid
-// Symbols are 0-7, representing S1-S8 (0=S1, 1=S2, ..., 7=S8)
+/**
+ * Calculates payouts for the middle row (Indices 1, 4, 7, 10, 13)
+ * Includes Wild (7) substitution logic.
+ */
 function checkWins(positions, betAmount = 1) {
     let totalWin = 0;
     const winDetails = [];
+    const WILD = 7;
     
-    // Middle row indices in 5x3 grid: [1, 4, 7, 10, 13]
-    // Grid layout: [0,1,2] [3,4,5] [6,7,8] [9,10,11] [12,13,14]
+    // Extract the middle row from the flat positions array
     const middleRow = [positions[1], positions[4], positions[7], positions[10], positions[13]];
     
-    // Check for matching symbols from left to right
-    const firstSymbol = middleRow[0];
-    let matchCount = 1;
+    // Identify the first non-wild symbol to determine the win line type
+    let firstSymbol = middleRow[0] === WILD ? middleRow.find(s => s !== WILD) : middleRow[0];
     
+    // If the whole line is Wilds, it pays as the highest symbol (S1)
+    if (firstSymbol === undefined) firstSymbol = 0; 
+
+    let matchCount = 1;
     for (let i = 1; i < 5; i++) {
-        if (middleRow[i] === firstSymbol) {
+        if (middleRow[i] === firstSymbol || middleRow[i] === WILD) {
             matchCount++;
         } else {
             break;
         }
     }
     
-    // Calculate line wins
-    if (matchCount === 3) {
-        totalWin += betAmount * 5;
-        winDetails.push({ type: 'line', symbol: `S${firstSymbol + 1}`, count: 3, payout: betAmount * 5 });
-    } else if (matchCount === 4) {
-        totalWin += betAmount * 20;
-        winDetails.push({ type: 'line', symbol: `S${firstSymbol + 1}`, count: 4, payout: betAmount * 20 });
-    } else if (matchCount === 5) {
-        totalWin += betAmount * 100;
-        winDetails.push({ type: 'line', symbol: `S${firstSymbol + 1}`, count: 5, payout: betAmount * 100 });
+    // Calculate Payouts based on match count
+    const payTable = { 3: 5, 4: 20, 5: 100 };
+    if (payTable[matchCount]) {
+        const payout = betAmount * payTable[matchCount];
+        totalWin += payout;
+        winDetails.push({ 
+            type: 'line', 
+            symbol: `S${firstSymbol + 1}`, 
+            count: matchCount, 
+            payout 
+        });
     }
     
-    // Check for feature trigger: 3 or more S5 symbols (index 4)
+    // Check for 9mm Feature Trigger (S5 / index 4) scattered anywhere
     const s5Count = positions.filter(symbol => symbol === 4).length;
     const isFeatureTriggered = s5Count >= 3;
     
@@ -73,11 +102,7 @@ function checkWins(positions, betAmount = 1) {
         winDetails.push({ type: 'bonus', symbol: 'S5', count: s5Count, payout: bonusWin });
     }
     
-    return {
-        totalWin,
-        winDetails,
-        isFeatureTriggered
-    };
+    return { totalWin, winDetails, isFeatureTriggered };
 }
 
 Deno.serve(async (req) => {
@@ -93,46 +118,37 @@ Deno.serve(async (req) => {
         const { action, clientSeed, serverSeed, nonce, verifyServerSeed, verifyClientSeed, verifyNonce } = body;
 
         if (action === 'initSpin') {
-            // Generate new server seed and return its hash
             const newServerSeed = generateServerSeed();
             const serverSeedHash = await sha256(newServerSeed);
-            
-            return Response.json({
-                serverSeedHash,
-                serverSeed: newServerSeed // This will be stored securely, revealed after spin
-            });
+            return Response.json({ serverSeedHash, serverSeed: newServerSeed });
         }
 
         if (action === 'executeSpin') {
             const betAmount = body.betAmount || 1;
-            
-            // Combine seeds and nonce, then hash
             const combinedString = `${serverSeed}-${clientSeed}-${nonce}`;
             const combinedHash = await sha256(combinedString);
             
-            // Map to reel positions
-            const reelPositions = hashToReelPositions(combinedHash);
+            // Map to reel positions using professional strips
+            const { positions, stops } = hashToReelPositions(combinedHash);
             
-            // Calculate wins
-            const { totalWin, winDetails, isFeatureTriggered } = checkWins(reelPositions, betAmount);
-            
-            // Calculate server seed hash for verification
+            // Calculate actual wins and triggers
+            const { totalWin, winDetails, isFeatureTriggered } = checkWins(positions, betAmount);
             const serverSeedHash = await sha256(serverSeed);
             
-            // Save spin record with actual win amount
+            // Persist the spin record for the Provably Fair audit trail
             await base44.entities.SpinRecord.create({
                 server_seed_hash: serverSeedHash,
                 server_seed: serverSeed,
                 client_seed: clientSeed,
                 nonce,
                 combined_hash: combinedHash,
-                reel_positions: reelPositions,
+                reel_positions: stops, // Store stop indices for easier verification
                 win_amount: totalWin
             });
             
             return Response.json({
                 combinedHash,
-                reelPositions,
+                reelPositions: positions,
                 serverSeed,
                 serverSeedHash,
                 clientSeed,
@@ -144,16 +160,15 @@ Deno.serve(async (req) => {
         }
 
         if (action === 'verify') {
-            // Verification endpoint - allows manual verification
             const combinedString = `${verifyServerSeed}-${verifyClientSeed}-${verifyNonce}`;
             const combinedHash = await sha256(combinedString);
-            const reelPositions = hashToReelPositions(combinedHash);
+            const { positions } = hashToReelPositions(combinedHash);
             const serverSeedHash = await sha256(verifyServerSeed);
             
             return Response.json({
                 serverSeedHash,
                 combinedHash,
-                reelPositions,
+                reelPositions: positions,
                 verified: true
             });
         }
