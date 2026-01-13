@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from "@/cite: components/ui/button";
-import { Input } from "@/cite: components/ui/input";
-import { Label } from "@/cite: components/ui/label";
-import { Badge } from "@/cite: components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Sparkles, RotateCcw, Dices, Trophy } from 'lucide-react';
-import { base44 } from "@/cite: api/base44Client";
+import { base44 } from "@/api/base44Client";
 import SlotReel from './SlotReel';
 import SpinDetails from './SpinDetails';
+import BonusOverlay from './BonusOverlay';
 
 export default function SlotMachine({ onSpinComplete }) {
     const [isSpinning, setIsSpinning] = useState(false);
