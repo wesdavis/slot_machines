@@ -1,164 +1,116 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RotateCcw, Dices, Trophy } from 'lucide-react';
+import { Loader2, Sparkles, RotateCcw } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import SlotReel from './SlotReel';
-import SpinDetails from './SpinDetails';
-import BonusOverlay from './BonusOverlay';
 
 export default function SlotMachine({ onSpinComplete }) {
     const [isSpinning, setIsSpinning] = useState(false);
-    const [reelPositions, setReelPositions] = useState(null);
-    const [clientSeed, setClientSeed] = useState('');
+    const [reelPositions, setReelPositions] = useState(Array(15).fill(0));
+    const [clientSeed, setClientSeed] = useState(Math.random().toString(36).substring(7));
     const [nonce, setNonce] = useState(1);
     const [pendingServerSeed, setPendingServerSeed] = useState(null);
-    const [pendingHash, setPendingHash] = useState(null);
-    const [lastSpinData, setLastSpinData] = useState(null);
     const [winAmount, setWinAmount] = useState(0);
-    const [winDetails, setWinDetails] = useState([]);
     const [isFeatureTriggered, setIsFeatureTriggered] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [betAmount, setBetAmount] = useState(5); // Default to 5 for 1 per line
+    const [respinCount, setRespinCount] = useState(3);
+    const [isBonusActive, setIsBonusActive] = useState(false);
 
-    useEffect(() => {
-        initializeServerSeed();
-        setClientSeed(Math.random().toString(36).substring(2, 15));
-    }, []);
+    useEffect(() => { initializeServerSeed(); }, []);
 
     const initializeServerSeed = async () => {
-        setLoading(true);
-        try {
-            const response = await base44.functions.invoke('provablyFairSpin', { action: 'initSpin' });
-            setPendingServerSeed(response.data.serverSeed);
-            setPendingHash(response.data.serverSeedHash);
-        } catch (error) {
-            console.error('Init failed:', error);
-        } finally {
-            setLoading(false);
-        }
+        const response = await base44.functions.invoke('provablyFairSpin', { action: 'initSpin' });
+        setPendingServerSeed(response.data.serverSeed);
     };
 
     const handleSpin = async () => {
-        if (!clientSeed || !pendingServerSeed) return;
         setIsSpinning(true);
-        setWinAmount(0);
-        setWinDetails([]);
-        setIsFeatureTriggered(false);
+        const response = await base44.functions.invoke('provablyFairSpin', {
+            action: 'executeSpin',
+            serverSeed: pendingServerSeed,
+            clientSeed,
+            nonce,
+            betAmount: 5
+        });
 
-        try {
-            const response = await base44.functions.invoke('provablyFairSpin', {
-                action: 'executeSpin',
-                serverSeed: pendingServerSeed,
-                clientSeed,
-                nonce,
-                betAmount
-            });
-
-            const { reelPositions: newPositions, winAmount: totalWin, winDetails: details, isFeatureTriggered: featureTriggered, ...spinData } = response.data;
-
-            setTimeout(() => {
-                setReelPositions(newPositions);
-                setWinAmount(totalWin);
-                setWinDetails(details);
-                setIsFeatureTriggered(featureTriggered);
-                setLastSpinData({ ...spinData, reelPositions: newPositions, winAmount: totalWin });
-                setNonce(prev => prev + 1);
-                initializeServerSeed();
-                if (onSpinComplete) onSpinComplete({ ...spinData, reelPositions: newPositions, winAmount: totalWin, winDetails: details, isFeatureTriggered: featureTriggered });
-            }, 2000);
-
-            setTimeout(() => setIsSpinning(false), 2500);
-        } catch (error) {
-            console.error('Spin failed:', error);
+        setTimeout(() => {
+            const { reelPositions: pos, winAmount: win, isFeatureTriggered: triggered } = response.data;
+            setReelPositions(pos);
+            setWinAmount(win);
+            if (triggered) {
+                setIsBonusActive(true);
+                setRespinCount(3);
+            }
+            setNonce(n => n + 1);
             setIsSpinning(false);
-        }
+            initializeServerSeed();
+        }, 2000);
+    };
+
+    const handleBonusSpin = async () => {
+        setIsSpinning(true);
+        const response = await base44.functions.invoke('provablyFairSpin', {
+            action: 'executeBonusSpin',
+            serverSeed: pendingServerSeed,
+            clientSeed,
+            nonce,
+            currentGrid: reelPositions
+        });
+
+        setTimeout(() => {
+            const { reelPositions: nextGrid, newSymbolsAdded } = response.data;
+            setReelPositions(nextGrid);
+            if (newSymbolsAdded > 0) setRespinCount(3);
+            else setRespinCount(c => c - 1);
+            
+            if (respinCount <= 1 && newSymbolsAdded === 0) {
+                // End Bonus
+                setIsBonusActive(false);
+                setIsFeatureTriggered(true); // Shows the final "Business Meeting" summary
+            }
+            setNonce(n => n + 1);
+            setIsSpinning(false);
+            initializeServerSeed();
+        }, 1000);
     };
 
     return (
         <div className="space-y-6">
-            <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-b from-amber-600 via-yellow-500 to-amber-700 rounded-3xl opacity-80 blur-sm" />
-                <div className="relative bg-slate-900 rounded-xl p-6 border-4 border-amber-500/50 shadow-2xl">
-                    <div className="relative">
-                        <div className="flex gap-2 justify-center relative z-10">
-                            {[0, 1, 2, 3, 4].map((i) => (
-                                <SlotReel key={i} positions={reelPositions} isSpinning={isSpinning} reelIndex={i} />
-                            ))}
-                        </div>
-                        
-                        {/* 5 Paylines */}
-                        {!isSpinning && reelPositions && (
-                            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 20 }}>
-                                {/* Line 1: Middle Row */}
-                                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="#22c55e" strokeWidth="3" opacity="0.6" />
-                                {/* Line 2: Top Row */}
-                                <line x1="0" y1="16.67%" x2="100%" y2="16.67%" stroke="#3b82f6" strokeWidth="3" opacity="0.6" />
-                                {/* Line 3: Bottom Row */}
-                                <line x1="0" y1="83.33%" x2="100%" y2="83.33%" stroke="#f59e0b" strokeWidth="3" opacity="0.6" />
-                                {/* Line 4: V Shape (top-middle-bottom-middle-top) */}
-                                <polyline points="0,16.67% 25%,50% 50%,83.33% 75%,50% 100%,16.67%" fill="none" stroke="#ec4899" strokeWidth="3" opacity="0.6" />
-                                {/* Line 5: Inverted V (bottom-middle-top-middle-bottom) */}
-                                <polyline points="0,83.33% 25%,50% 50%,16.67% 75%,50% 100%,83.33%" fill="none" stroke="#8b5cf6" strokeWidth="3" opacity="0.6" />
-                            </svg>
-                        )}
+            <div className="bg-slate-900 p-6 rounded-xl border-4 border-amber-500 shadow-2xl relative">
+                {isBonusActive && (
+                    <div className="absolute -top-10 left-0 right-0 text-center">
+                        <Badge className="bg-red-600 text-white text-xl px-6 py-2">
+                            RESPINS LEFT: {respinCount}
+                        </Badge>
                     </div>
+                )}
+                <div className="flex gap-2 justify-center">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                        <SlotReel key={i} positions={reelPositions} isSpinning={isSpinning} reelIndex={i} />
+                    ))}
                 </div>
             </div>
 
-            <div className="bg-slate-900/80 p-4 rounded-xl border border-amber-500/20 space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                        <Label className="text-xs text-slate-400">Total Bet (5 Lines)</Label>
-                        <Input type="number" value={betAmount} onChange={(e) => setBetAmount(parseInt(e.target.value))} className="h-8 bg-slate-800" />
-                    </div>
-                    <div className="space-y-1">
-                        <Label className="text-xs text-slate-400">Client Seed</Label>
-                        <Input value={clientSeed} onChange={(e) => setClientSeed(e.target.value)} className="h-8 bg-slate-800 font-mono text-xs" />
-                    </div>
-                </div>
+            <Button 
+                onClick={isBonusActive ? handleBonusSpin : handleSpin} 
+                disabled={isSpinning} 
+                className={`w-full h-16 text-2xl font-black ${isBonusActive ? 'bg-orange-500' : 'bg-red-600'}`}
+            >
+                {isSpinning ? <Loader2 className="animate-spin" /> : (isBonusActive ? "BONUS SPIN" : "SPIN")}
+            </Button>
 
-                <Button onClick={handleSpin} disabled={isSpinning || loading} className="w-full h-12 bg-red-600 hover:bg-red-700 font-bold">
-                    {isSpinning ? <Loader2 className="animate-spin" /> : "SPIN"}
-                </Button>
-
-                <AnimatePresence>
-                    {winAmount > 0 && (
-                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-green-500/10 border border-green-500/50 rounded-lg">
-                            <div className="flex justify-between items-center text-green-400 font-bold">
-                                <span>TOTAL WIN</span>
-                                <span>{winAmount}x</span>
-                            </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* Hold & Win Bonus Overlay */}
             <AnimatePresence>
                 {isFeatureTriggered && (
-                    <motion.div 
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl"
-                    >
-                        <div className="text-center p-12 border-4 border-amber-500 rounded-[40px] bg-slate-900 shadow-[0_0_100px_rgba(245,158,11,0.3)]">
-                            <h2 className="text-6xl font-black text-amber-400 mb-2 italic">BUSINESS MEETING</h2>
-                            <p className="text-slate-400 text-xl tracking-widest mb-8">HOLD & WIN ACTIVATED</p>
-                            <div className="text-8xl font-black text-green-400 mb-8 drop-shadow-lg">+{winAmount}x</div>
-                            <Button onClick={() => setIsFeatureTriggered(false)} className="bg-amber-500 text-slate-950 font-black px-12 py-8 text-2xl rounded-2xl hover:bg-amber-400">
-                                COLLECT
-                            </Button>
+                    <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90">
+                        <div className="text-center p-12 border-4 border-amber-500 rounded-3xl bg-slate-900">
+                            <h2 className="text-5xl font-black text-amber-400 mb-4">BUSINESS MEETING OVER</h2>
+                            <div className="text-7xl font-bold text-green-400">+{winAmount}x</div>
+                            <Button onClick={() => setIsFeatureTriggered(false)} className="mt-8 bg-amber-500 text-black px-12 py-4 text-xl">COLLECT</Button>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
-
-            <SpinDetails spinData={lastSpinData} pendingHash={pendingHash} isSpinning={isSpinning} />
         </div>
     );
 }
