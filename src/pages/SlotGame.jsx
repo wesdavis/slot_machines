@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/cite: components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Gamepad2, ShieldCheck, Info, Sparkles } from 'lucide-react';
-import SlotMachine from '@/cite: components/slots/SlotMachine';
-import VerificationTool from '@/cite: components/slots/VerificationTool';
+import SlotMachine from '@/components/slots/SlotMachine';
+import VerificationTool from '@/components/slots/VerificationTool';
 
 // Updated to Sopranos Theme
 const SYMBOLS = ['Tony', 'Paulie', 'Silvio', 'Gabagool', '9mm', 'AJ', 'Meadow', 'BadaBing'];
