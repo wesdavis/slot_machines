@@ -42,7 +42,7 @@ function checkWins(positions: number[], betAmount = 1) {
             else break;
         }
 
-        const payTable = { 3: 2, 4: 10, 5: 50 };
+        const payTable: Record<number, number> = { 3: 2, 4: 10, 5: 50 };
         if (payTable[matches]) {
             const payout = betPerLine * payTable[matches];
             totalWin += payout;
@@ -51,7 +51,7 @@ function checkWins(positions: number[], betAmount = 1) {
     });
 
     const s5Count = positions.filter(s => s === SCATTER_S5).length;
-    const isHoldAndWinTriggered = s5Count >= 6; // Confirmed 6 symbols for trigger
+    const isHoldAndWinTriggered = s5Count >= 6; // Mandatory 6 to trigger
 
     return { totalWin, winDetails, isHoldAndWinTriggered, s5Count };
 }
@@ -99,9 +99,9 @@ Deno.serve(async (req) => {
             let newSymbolsAdded = 0;
 
             for (let i = 0; i < 15; i++) {
-                if (nextGrid[i] !== 4) { // roll only for non-9mm spots
-                    const randVal = parseInt(combinedHash.substring(i * 2, i * 2 + 4), 16) % 100;
-                    if (randVal < 15) { 
+                if (nextGrid[i] !== 4) { 
+                    const randVal = parseInt(combinedHash.substring((i % 8) * 4, (i % 8) * 4 + 4), 16) % 100;
+                    if (randVal < 15) { // 15% chance to land a new 9mm
                         nextGrid[i] = 4;
                         newSymbolsAdded++;
                     }
@@ -110,13 +110,12 @@ Deno.serve(async (req) => {
 
             const finalS5Count = nextGrid.filter(s => s === 4).length;
             const currentBonusWin = finalS5Count * (bet * 1.5);
-            const isComplete = finalS5Count >= 15;
 
             return Response.json({
                 reelPositions: nextGrid,
                 newSymbolsAdded,
                 currentBonusWin,
-                isComplete
+                isComplete: !nextGrid.includes(0) && nextGrid.every(s => s === 4)
             });
         }
 
