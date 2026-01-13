@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, CheckCircle2, XCircle, Loader2, Copy, Info } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 
-const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '💎', '7️⃣', '🔔', '⭐'];
+const SYMBOLS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
 
 export default function VerificationTool({ lastSpinData }) {
     const [serverSeed, setServerSeed] = useState('');
@@ -182,7 +182,7 @@ export default function VerificationTool({ lastSpinData }) {
                                                 {result.reelPositions?.map((pos, i) => (
                                                     <div
                                                         key={i}
-                                                        className="w-8 h-8 bg-slate-700 rounded flex items-center justify-center text-lg"
+                                                        className="w-8 h-8 bg-slate-700 rounded flex items-center justify-center text-sm font-bold text-amber-400"
                                                     >
                                                         {SYMBOLS[pos]}
                                                     </div>

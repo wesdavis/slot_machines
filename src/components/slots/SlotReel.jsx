@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '💎', '7️⃣', '🔔', '⭐'];
+const SYMBOLS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
 
 export default function SlotReel({ positions, isSpinning, reelIndex, onSpinComplete }) {
     const [displaySymbols, setDisplaySymbols] = useState([0, 1, 2]);
@@ -72,7 +72,7 @@ export default function SlotReel({ positions, isSpinning, reelIndex, onSpinCompl
                             {displaySymbols.map((symbolIndex, row) => (
                                 <div
                                     key={row}
-                                    className="w-16 sm:w-20 h-16 sm:h-20 flex items-center justify-center text-4xl sm:text-5xl"
+                                    className="w-16 sm:w-20 h-16 sm:h-20 flex items-center justify-center text-2xl sm:text-3xl font-bold text-amber-400"
                                 >
                                     {SYMBOLS[symbolIndex]}
                                 </div>

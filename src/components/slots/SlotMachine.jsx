@@ -8,6 +8,7 @@ import { Loader2, Sparkles, RotateCcw, Dices } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import SlotReel, { SYMBOLS } from './SlotReel';
 import SpinDetails from './SpinDetails';
+import { Trophy, Sparkles } from 'lucide-react';
 
 export default function SlotMachine({ onSpinComplete }) {
     const [isSpinning, setIsSpinning] = useState(false);
@@ -17,8 +18,11 @@ export default function SlotMachine({ onSpinComplete }) {
     const [pendingServerSeed, setPendingServerSeed] = useState(null);
     const [pendingHash, setPendingHash] = useState(null);
     const [lastSpinData, setLastSpinData] = useState(null);
-    const [winLines, setWinLines] = useState([]);
+    const [winAmount, setWinAmount] = useState(0);
+    const [winDetails, setWinDetails] = useState([]);
+    const [isFeatureTriggered, setIsFeatureTriggered] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [betAmount, setBetAmount] = useState(1);
 
     // Initialize server seed on mount
     useEffect(() => {
@@ -42,66 +46,51 @@ export default function SlotMachine({ onSpinComplete }) {
         }
     };
 
-    const checkWins = (positions) => {
-        const wins = [];
-        // Check middle row (indices 1, 4, 7, 10, 13)
-        const middleRow = [positions[1], positions[4], positions[7], positions[10], positions[13]];
-        if (middleRow.every(s => s === middleRow[0])) {
-            wins.push({ line: 'middle', symbol: middleRow[0], count: 5 });
-        } else if (middleRow.slice(0, 3).every(s => s === middleRow[0])) {
-            wins.push({ line: 'middle', symbol: middleRow[0], count: 3 });
-        }
-        
-        // Check top row (indices 0, 3, 6, 9, 12)
-        const topRow = [positions[0], positions[3], positions[6], positions[9], positions[12]];
-        if (topRow.every(s => s === topRow[0])) {
-            wins.push({ line: 'top', symbol: topRow[0], count: 5 });
-        } else if (topRow.slice(0, 3).every(s => s === topRow[0])) {
-            wins.push({ line: 'top', symbol: topRow[0], count: 3 });
-        }
-        
-        // Check bottom row (indices 2, 5, 8, 11, 14)
-        const bottomRow = [positions[2], positions[5], positions[8], positions[11], positions[14]];
-        if (bottomRow.every(s => s === bottomRow[0])) {
-            wins.push({ line: 'bottom', symbol: bottomRow[0], count: 5 });
-        } else if (bottomRow.slice(0, 3).every(s => s === bottomRow[0])) {
-            wins.push({ line: 'bottom', symbol: bottomRow[0], count: 3 });
-        }
-
-        return wins;
-    };
-
     const handleSpin = async () => {
         if (!clientSeed || !pendingServerSeed) return;
 
         setIsSpinning(true);
-        setWinLines([]);
+        setWinAmount(0);
+        setWinDetails([]);
+        setIsFeatureTriggered(false);
 
         try {
             const response = await base44.functions.invoke('provablyFairSpin', {
                 action: 'executeSpin',
                 serverSeed: pendingServerSeed,
                 clientSeed,
-                nonce
+                nonce,
+                betAmount
             });
 
-            const { reelPositions: newPositions, ...spinData } = response.data;
+            const { 
+                reelPositions: newPositions, 
+                winAmount: totalWin,
+                winDetails: details,
+                isFeatureTriggered: featureTriggered,
+                ...spinData 
+            } = response.data;
 
             // Delay showing results for animation
             setTimeout(() => {
                 setReelPositions(newPositions);
-                setLastSpinData({ ...spinData, reelPositions: newPositions });
+                setLastSpinData({ ...spinData, reelPositions: newPositions, winAmount: totalWin });
+                setWinAmount(totalWin);
+                setWinDetails(details);
+                setIsFeatureTriggered(featureTriggered);
                 setNonce(prev => prev + 1);
-                
-                // Check for wins
-                const wins = checkWins(newPositions);
-                setWinLines(wins);
 
                 // Get new server seed for next spin
                 initializeServerSeed();
                 
                 if (onSpinComplete) {
-                    onSpinComplete({ ...spinData, reelPositions: newPositions, wins });
+                    onSpinComplete({ 
+                        ...spinData, 
+                        reelPositions: newPositions, 
+                        winAmount: totalWin,
+                        winDetails: details,
+                        isFeatureTriggered: featureTriggered
+                    });
                 }
             }, 2000);
 
@@ -162,6 +151,20 @@ export default function SlotMachine({ onSpinComplete }) {
 
             {/* Controls */}
             <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-amber-500/20 space-y-4">
+                {/* Bet Amount */}
+                <div className="space-y-2">
+                    <Label className="text-slate-300 text-sm">Bet Amount</Label>
+                    <Input
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={betAmount}
+                        onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="bg-slate-800 border-slate-700 text-slate-200"
+                        disabled={isSpinning}
+                    />
+                </div>
+
                 {/* Client Seed Input */}
                 <div className="space-y-2">
                     <div className="flex items-center justify-between">
@@ -192,6 +195,41 @@ export default function SlotMachine({ onSpinComplete }) {
                         {nonce}
                     </Badge>
                 </div>
+
+                {/* Win display */}
+                {winAmount > 0 && (
+                    <motion.div
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg p-4"
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-green-400 font-semibold flex items-center gap-2">
+                                <Trophy className="w-5 h-5" />
+                                Total Win
+                            </span>
+                            <span className="text-2xl font-bold text-green-400">
+                                {winAmount}x
+                            </span>
+                        </div>
+                        {winDetails.map((detail, i) => (
+                            <div key={i} className="flex justify-between text-sm text-slate-300 mt-1">
+                                <span>
+                                    {detail.type === 'line' ? '🎯 Line Win' : '✨ Bonus'} - {detail.symbol} x{detail.count}
+                                </span>
+                                <span className="text-green-400">{detail.payout}x</span>
+                            </div>
+                        ))}
+                        {isFeatureTriggered && (
+                            <div className="mt-2 pt-2 border-t border-green-500/30">
+                                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse">
+                                    <Sparkles className="w-3 h-3 mr-1" />
+                                    FEATURE TRIGGERED!
+                                </Badge>
+                            </div>
+                        )}
+                    </motion.div>
+                )}
 
                 {/* Spin Button */}
                 <Button

@@ -29,6 +29,57 @@ function hashToReelPositions(hash, symbolCount = 8) {
     return positions;
 }
 
+// Check wins on the grid
+// Symbols are 0-7, representing S1-S8 (0=S1, 1=S2, ..., 7=S8)
+function checkWins(positions, betAmount = 1) {
+    let totalWin = 0;
+    const winDetails = [];
+    
+    // Middle row indices in 5x3 grid: [1, 4, 7, 10, 13]
+    // Grid layout: [0,1,2] [3,4,5] [6,7,8] [9,10,11] [12,13,14]
+    const middleRow = [positions[1], positions[4], positions[7], positions[10], positions[13]];
+    
+    // Check for matching symbols from left to right
+    const firstSymbol = middleRow[0];
+    let matchCount = 1;
+    
+    for (let i = 1; i < 5; i++) {
+        if (middleRow[i] === firstSymbol) {
+            matchCount++;
+        } else {
+            break;
+        }
+    }
+    
+    // Calculate line wins
+    if (matchCount === 3) {
+        totalWin += betAmount * 5;
+        winDetails.push({ type: 'line', symbol: `S${firstSymbol + 1}`, count: 3, payout: betAmount * 5 });
+    } else if (matchCount === 4) {
+        totalWin += betAmount * 20;
+        winDetails.push({ type: 'line', symbol: `S${firstSymbol + 1}`, count: 4, payout: betAmount * 20 });
+    } else if (matchCount === 5) {
+        totalWin += betAmount * 100;
+        winDetails.push({ type: 'line', symbol: `S${firstSymbol + 1}`, count: 5, payout: betAmount * 100 });
+    }
+    
+    // Check for feature trigger: 3 or more S5 symbols (index 4)
+    const s5Count = positions.filter(symbol => symbol === 4).length;
+    const isFeatureTriggered = s5Count >= 3;
+    
+    if (isFeatureTriggered) {
+        const bonusWin = betAmount * 50;
+        totalWin += bonusWin;
+        winDetails.push({ type: 'bonus', symbol: 'S5', count: s5Count, payout: bonusWin });
+    }
+    
+    return {
+        totalWin,
+        winDetails,
+        isFeatureTriggered
+    };
+}
+
 Deno.serve(async (req) => {
     try {
         const base44 = createClientFromRequest(req);
@@ -53,6 +104,8 @@ Deno.serve(async (req) => {
         }
 
         if (action === 'executeSpin') {
+            const betAmount = body.betAmount || 1;
+            
             // Combine seeds and nonce, then hash
             const combinedString = `${serverSeed}-${clientSeed}-${nonce}`;
             const combinedHash = await sha256(combinedString);
@@ -60,10 +113,13 @@ Deno.serve(async (req) => {
             // Map to reel positions
             const reelPositions = hashToReelPositions(combinedHash);
             
+            // Calculate wins
+            const { totalWin, winDetails, isFeatureTriggered } = checkWins(reelPositions, betAmount);
+            
             // Calculate server seed hash for verification
             const serverSeedHash = await sha256(serverSeed);
             
-            // Save spin record
+            // Save spin record with actual win amount
             await base44.entities.SpinRecord.create({
                 server_seed_hash: serverSeedHash,
                 server_seed: serverSeed,
@@ -71,7 +127,7 @@ Deno.serve(async (req) => {
                 nonce,
                 combined_hash: combinedHash,
                 reel_positions: reelPositions,
-                win_amount: 0
+                win_amount: totalWin
             });
             
             return Response.json({
@@ -80,7 +136,10 @@ Deno.serve(async (req) => {
                 serverSeed,
                 serverSeedHash,
                 clientSeed,
-                nonce
+                nonce,
+                winAmount: totalWin,
+                winDetails,
+                isFeatureTriggered
             });
         }
 

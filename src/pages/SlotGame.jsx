@@ -7,7 +7,7 @@ import { Gamepad2, ShieldCheck, Info, Sparkles } from 'lucide-react';
 import SlotMachine from '@/components/slots/SlotMachine';
 import VerificationTool from '@/components/slots/VerificationTool';
 
-const SYMBOLS = ['🍒', '🍋', '🍊', '🍇', '💎', '7️⃣', '🔔', '⭐'];
+const SYMBOLS = ['S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'];
 
 export default function SlotGame() {
     const [lastSpinData, setLastSpinData] = useState(null);
@@ -119,16 +119,39 @@ export default function SlotGame() {
                                     Symbols
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-3">
                                 <div className="grid grid-cols-4 gap-2">
                                     {SYMBOLS.map((symbol, i) => (
                                         <div
                                             key={i}
-                                            className="aspect-square bg-slate-800/50 rounded-lg flex items-center justify-center text-2xl border border-slate-700/50 hover:border-amber-500/50 transition-colors"
+                                            className="aspect-square bg-slate-800/50 rounded-lg flex items-center justify-center text-lg font-bold text-amber-400 border border-slate-700/50 hover:border-amber-500/50 transition-colors"
                                         >
                                             {symbol}
                                         </div>
                                     ))}
+                                </div>
+                                <div className="bg-slate-800/50 rounded-lg p-3 space-y-2 text-xs">
+                                    <div className="text-slate-400">
+                                        <strong className="text-slate-200">Middle Row Wins:</strong>
+                                    </div>
+                                    <div className="flex justify-between text-slate-400">
+                                        <span>3 matching symbols</span>
+                                        <span className="text-green-400 font-semibold">5x bet</span>
+                                    </div>
+                                    <div className="flex justify-between text-slate-400">
+                                        <span>4 matching symbols</span>
+                                        <span className="text-green-400 font-semibold">20x bet</span>
+                                    </div>
+                                    <div className="flex justify-between text-slate-400">
+                                        <span>5 matching symbols</span>
+                                        <span className="text-green-400 font-semibold">100x bet</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-slate-700">
+                                        <div className="flex justify-between text-purple-400">
+                                            <span>3+ S5 symbols (anywhere)</span>
+                                            <span className="font-semibold">50x BONUS</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -144,18 +167,25 @@ export default function SlotGame() {
                                         {spinHistory.map((spin, i) => (
                                             <div
                                                 key={i}
-                                                className="bg-slate-800/50 rounded-lg p-2 flex items-center justify-between"
+                                                className="bg-slate-800/50 rounded-lg p-2"
                                             >
-                                                <div className="flex gap-1">
-                                                    {spin.reelPositions?.slice(0, 5).map((pos, j) => (
-                                                        <span key={j} className="text-sm">
-                                                            {SYMBOLS[pos]}
-                                                        </span>
-                                                    ))}
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <div className="flex gap-1">
+                                                        {spin.reelPositions?.slice(1, 14).filter((_, idx) => idx % 3 === 0).map((pos, j) => (
+                                                            <span key={j} className="text-xs font-bold text-amber-400">
+                                                                {SYMBOLS[pos]}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                    <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
+                                                        #{spin.nonce}
+                                                    </Badge>
                                                 </div>
-                                                <Badge variant="outline" className="text-xs border-slate-600 text-slate-400">
-                                                    #{spin.nonce}
-                                                </Badge>
+                                                {spin.winAmount > 0 && (
+                                                    <div className="text-xs text-green-400 font-semibold">
+                                                        Win: {spin.winAmount}x
+                                                    </div>
+                                                )}
                                             </div>
                                         ))}
                                     </div>
