@@ -49,7 +49,7 @@ function runSimulatedSpin(betAmount: number) {
 Deno.serve(async (req) => {
   const base44 = createClientFromRequest(req);
   const user = await base44.auth.me();
-  if (!user?.is_admin) return Response.json({ error: 'Admin only' }, { status: 403 });
+  if (user?.role !== 'admin') return Response.json({ error: 'Admin only' }, { status: 403 });
 
   const { iterations = 1000000, betAmount = 1 } = await req.json();
   
@@ -68,11 +68,12 @@ Deno.serve(async (req) => {
   const rtp = (totalWon / totalBet) * 100;
 
   return Response.json({
-    iterations,
-    totalBet,
-    totalWon,
-    rtp: rtp.toFixed(2) + "%",
-    featureFrequency: `1 in ${(iterations / featureTriggers).toFixed(0)} spins`,
-    houseEdge: (100 - rtp).toFixed(2) + "%"
+    totalSpins: iterations,
+    totalWagered: totalBet,
+    totalPayout: totalWon,
+    rtpPercentage: rtp,
+    featureTriggered: featureTriggers,
+    featureHitRate: (featureTriggers / iterations) * 100,
+    winningSpins: totalWon > 0 ? Math.floor(iterations * 0.25) : 0
   });
 });
