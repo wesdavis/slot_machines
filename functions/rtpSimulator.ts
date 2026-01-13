@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// 1. REEL STRIPS (Must match your provablyFairSpin.ts exactly)
+// REEL STRIPS (Must match provablyFairSpin exactly)
 const REEL_STRIPS = [
   [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4],
   [1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
@@ -9,9 +9,8 @@ const REEL_STRIPS = [
   [4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 4, 5, 6, 7, 0]
 ];
 
-// 2. MATH ENGINE (Optimized for speed)
-function runSimulatedSpin(betAmount: number) {
-  const positions: number[] = [];
+function runSimulatedSpin(betAmount) {
+  const positions = [];
   const WILD = 7;
   const FEATURE_SYM = 4;
 
@@ -35,7 +34,7 @@ function runSimulatedSpin(betAmount: number) {
     else break;
   }
 
-  const payTable: Record<number, number> = { 3: 5, 4: 20, 5: 100 };
+  const payTable = { 3: 5, 4: 20, 5: 100 };
   if (payTable[matchCount]) win += betAmount * payTable[matchCount];
 
   // Feature Trigger
@@ -47,33 +46,42 @@ function runSimulatedSpin(betAmount: number) {
 }
 
 Deno.serve(async (req) => {
-  const base44 = createClientFromRequest(req);
-  const user = await base44.auth.me();
-  if (user?.role !== 'admin') return Response.json({ error: 'Admin only' }, { status: 403 });
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    
+    if (user?.role !== 'admin') {
+      return Response.json({ error: 'Admin only' }, { status: 403 });
+    }
 
-  const { iterations = 1000000, betAmount = 1 } = await req.json();
-  
-  let totalBet = 0;
-  let totalWon = 0;
-  let featureTriggers = 0;
+    const { spins = 1000000, betAmount = 1 } = await req.json();
+    
+    let totalBet = 0;
+    let totalWon = 0;
+    let featureTriggers = 0;
+    let winningSpins = 0;
 
-  // Run the loop
-  for (let i = 0; i < iterations; i++) {
-    totalBet += betAmount;
-    const result = runSimulatedSpin(betAmount);
-    totalWon += result.win;
-    if (result.isFeature) featureTriggers++;
+    // Run the simulation
+    for (let i = 0; i < spins; i++) {
+      totalBet += betAmount;
+      const result = runSimulatedSpin(betAmount);
+      totalWon += result.win;
+      if (result.win > 0) winningSpins++;
+      if (result.isFeature) featureTriggers++;
+    }
+
+    const rtp = (totalWon / totalBet) * 100;
+
+    return Response.json({
+      totalSpins: spins,
+      totalWagered: totalBet,
+      totalPayout: totalWon,
+      rtpPercentage: rtp,
+      featureTriggered: featureTriggers,
+      featureHitRate: (featureTriggers / spins) * 100,
+      winningSpins: winningSpins
+    });
+  } catch (error) {
+    return Response.json({ error: error.message }, { status: 500 });
   }
-
-  const rtp = (totalWon / totalBet) * 100;
-
-  return Response.json({
-    totalSpins: iterations,
-    totalWagered: totalBet,
-    totalPayout: totalWon,
-    rtpPercentage: rtp,
-    featureTriggered: featureTriggers,
-    featureHitRate: (featureTriggers / iterations) * 100,
-    winningSpins: totalWon > 0 ? Math.floor(iterations * 0.25) : 0
-  });
 });
