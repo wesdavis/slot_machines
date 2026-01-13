@@ -35,7 +35,7 @@ export default function SlotReel({ positions, isSpinning, reelIndex }) {
                             transition={{ duration: 0.1, repeat: Infinity, ease: "linear", delay: reelIndex * 0.05 }}
                         >
                             {[...Array(6)].map((_, i) => (
-                                <div key={i} className="h-20 flex items-center justify-center text-[10px] font-bold text-slate-700">
+                                <div key={i} className="h-20 flex items-center justify-center text-[10px] font-bold text-amber-400">
                                     {SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]}
                                 </div>
                             ))}
@@ -56,7 +56,7 @@ export default function SlotReel({ positions, isSpinning, reelIndex }) {
                     )}
                 </AnimatePresence>
             </div>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 pointer-events-none" />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 pointer-events-none" />
         </div>
     );
 }

@@ -83,10 +83,28 @@ export default function SlotMachine({ onSpinComplete }) {
             <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-b from-amber-600 via-yellow-500 to-amber-700 rounded-3xl opacity-80 blur-sm" />
                 <div className="relative bg-slate-900 rounded-xl p-6 border-4 border-amber-500/50 shadow-2xl">
-                    <div className="flex gap-2 justify-center">
-                        {[0, 1, 2, 3, 4].map((i) => (
-                            <SlotReel key={i} positions={reelPositions} isSpinning={isSpinning} reelIndex={i} />
-                        ))}
+                    <div className="relative">
+                        <div className="flex gap-2 justify-center relative z-10">
+                            {[0, 1, 2, 3, 4].map((i) => (
+                                <SlotReel key={i} positions={reelPositions} isSpinning={isSpinning} reelIndex={i} />
+                            ))}
+                        </div>
+                        
+                        {/* 5 Paylines */}
+                        {!isSpinning && reelPositions && (
+                            <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 20 }}>
+                                {/* Line 1: Middle Row */}
+                                <line x1="0" y1="50%" x2="100%" y2="50%" stroke="#22c55e" strokeWidth="3" opacity="0.6" />
+                                {/* Line 2: Top Row */}
+                                <line x1="0" y1="16.67%" x2="100%" y2="16.67%" stroke="#3b82f6" strokeWidth="3" opacity="0.6" />
+                                {/* Line 3: Bottom Row */}
+                                <line x1="0" y1="83.33%" x2="100%" y2="83.33%" stroke="#f59e0b" strokeWidth="3" opacity="0.6" />
+                                {/* Line 4: V Shape (top-middle-bottom-middle-top) */}
+                                <polyline points="0,16.67% 25%,50% 50%,83.33% 75%,50% 100%,16.67%" fill="none" stroke="#ec4899" strokeWidth="3" opacity="0.6" />
+                                {/* Line 5: Inverted V (bottom-middle-top-middle-bottom) */}
+                                <polyline points="0,83.33% 25%,50% 50%,16.67% 75%,50% 100%,83.33%" fill="none" stroke="#8b5cf6" strokeWidth="3" opacity="0.6" />
+                            </svg>
+                        )}
                     </div>
                 </div>
             </div>
