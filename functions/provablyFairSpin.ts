@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
+/**
+ * REEL STRIPS
+ * S1-S7 = 0-6, S5 (9mm) = 4, WILD (Bada Bing) = 7
+ */
 const REEL_STRIPS = [
   [0, 3, 5, 6, 5, 3, 7, 5, 6, 0, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 0, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
   [1, 3, 5, 6, 5, 3, 7, 5, 6, 1, 3, 5, 4, 6, 3, 5, 6, 7, 3, 5, 6, 1, 3, 5, 6, 3, 5, 6, 7, 3, 5, 6],
@@ -27,9 +31,9 @@ function generateServerSeed(length = 32) {
 
 function getS5Value(betAmount: number) {
   const rand = Math.random();
-  if (rand < 0.05) return betAmount * 20;
-  if (rand < 0.20) return betAmount * 5;
-  return betAmount * 1.5;
+  if (rand < 0.05) return betAmount * 20; 
+  if (rand < 0.20) return betAmount * 5;  
+  return betAmount * 1.5;                
 }
 
 function checkWins(positions: number[], betAmount = 1) {
@@ -57,10 +61,10 @@ function checkWins(positions: number[], betAmount = 1) {
         }
     });
 
-    const s5Indices = positions.map((s, i) => s === SCATTER_S5 ? i : -1).filter(i => i !== -1);
-    const isHoldAndWinTriggered = s5Indices.length >= 6;
+    const s5Count = positions.filter(s => s === SCATTER_S5).length;
+    const isHoldAndWinTriggered = s5Count >= 6;
 
-    return { totalWin, winDetails, isHoldAndWinTriggered, s5Count: s5Indices.length };
+    return { totalWin, winDetails, isHoldAndWinTriggered, s5Count };
 }
 
 Deno.serve(async (req) => {
@@ -82,8 +86,11 @@ Deno.serve(async (req) => {
             const combinedHash = await sha256(`${serverSeed}-${clientSeed}-${nonce}`);
             const positions: number[] = [];
             for (let i = 0; i < 5; i++) {
-                const stopIndex = parseInt(combinedHash.substring(i * 8, (i * 8) + 8), 16) % REEL_STRIPS[i].length;
-                for (let r = 0; r < 3; r++) positions.push(REEL_STRIPS[i][(stopIndex + r) % REEL_STRIPS[i].length]);
+                const hexPart = combinedHash.substring(i * 8, (i * 8) + 8);
+                const stopIndex = parseInt(hexPart, 16) % REEL_STRIPS[i].length;
+                for (let r = 0; r < 3; r++) {
+                    positions.push(REEL_STRIPS[i][(stopIndex + r) % REEL_STRIPS[i].length]);
+                }
             }
             const { totalWin, winDetails, isHoldAndWinTriggered, s5Count } = checkWins(positions, bet);
             
@@ -99,23 +106,27 @@ Deno.serve(async (req) => {
         if (action === 'executeBonusSpin') {
             const bet = body.betAmount || 5;
             const combinedHash = await sha256(`${serverSeed}-${clientSeed}-${nonce}`);
-            // In Bonus mode, we only generate new symbols for non-9mm spots
             const nextGrid = [...currentGrid];
             let newSymbolsAdded = 0;
 
             for (let i = 0; i < 15; i++) {
-                if (nextGrid[i] !== 4) { // 4 is 9mm (S5)
+                if (nextGrid[i] !== 4) { // Only roll for empty spots
                     const randVal = parseInt(combinedHash.substring((i % 8) * 4, (i % 8) * 4 + 4), 16) % 100;
-                    if (randVal < 15) { // 15% chance to land a new sticky 9mm
+                    if (randVal < 15) { // 15% probability to hit a new sticky 9mm
                         nextGrid[i] = 4;
                         newSymbolsAdded++;
                     }
                 }
             }
 
+            // Calculate total win from all 9mm symbols on board
+            const finalS5Count = nextGrid.filter(s => s === 4).length;
+            const currentBonusWin = finalS5Count * (bet * 1.5);
+
             return Response.json({
                 reelPositions: nextGrid,
                 newSymbolsAdded,
+                currentBonusWin,
                 isComplete: !nextGrid.includes(-1) && newSymbolsAdded === 0
             });
         }
