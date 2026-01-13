@@ -1,16 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// SOPRANOS SYMBOLS
 export const SYMBOLS = ['Tony', 'Paulie', 'Silvio', 'Gabagool', '9mm', 'AJ', 'Meadow', 'BadaBing'];
 
 export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode }) {
     const [displaySymbols, setDisplaySymbols] = useState([0, 1, 2]);
     const [spinKey, setSpinKey] = useState(0);
 
+    // Trigger spin animation
     useEffect(() => {
         if (isSpinning) setSpinKey(prev => prev + 1);
     }, [isSpinning]);
 
+    // Update symbols on stop
     useEffect(() => {
         if (!isSpinning && positions) {
             const reelSymbols = [
@@ -23,42 +26,46 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
     }, [isSpinning, positions, reelIndex]);
 
     return (
-        <div className={`relative w-24 h-[240px] overflow-hidden rounded-xl border-2 transition-all duration-500 ${isBonusMode ? 'bg-slate-950 border-red-900/50 shadow-[inset_0_0_20px_rgba(220,38,38,0.2)]' : 'bg-slate-900 border-amber-500/20'}`}>
+        <div className={`relative w-24 h-[240px] overflow-hidden rounded-xl border-2 transition-all duration-500 ${isBonusMode ? 'bg-black border-red-900/50' : 'bg-slate-950 border-amber-500/20'}`}>
             <div className="absolute inset-0 flex flex-col items-center">
                 <AnimatePresence mode="wait">
+                    {/* MODE 1: NORMAL SPINNING */}
                     {isSpinning && !isBonusMode ? (
-                        /* Standard Spin: Fast vertical loop */
                         <motion.div
                             key={`spinning-${spinKey}`}
-                            className="flex flex-col"
+                            className="flex flex-col gap-0"
                             initial={{ y: 0 }}
-                            animate={{ y: [-1000, 0] }}
-                            transition={{ duration: 0.15, repeat: Infinity, ease: "linear", delay: reelIndex * 0.05 }}
+                            animate={{ y: [-1200, 0] }}
+                            transition={{ duration: 0.12, repeat: Infinity, ease: "linear", delay: reelIndex * 0.05 }}
                         >
+                            {/* Create a long strip of random symbols for blur effect */}
                             {[...Array(20)].map((_, i) => (
-                                <div key={i} className="h-20 w-24 flex items-center justify-center text-[10px] font-bold text-amber-500/60 italic uppercase">
+                                <div key={i} className="h-20 w-24 flex items-center justify-center text-[10px] font-bold text-slate-500 italic opacity-50 uppercase">
                                     {SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]}
                                 </div>
                             ))}
                         </motion.div>
                     ) : (
-                        /* Bonus/Stopped View */
+                        /* MODE 2: STOPPED or BONUS SPINNING */
                         <motion.div
                             key="stopped"
-                            className="flex flex-col"
-                            initial={isBonusMode ? false : { y: -40 }}
+                            className="flex flex-col gap-0"
+                            initial={isBonusMode ? false : { y: -40 }} // Don't bounce in bonus mode
                             animate={{ y: 0 }}
                             transition={{ type: "spring", stiffness: 400, damping: 20, delay: reelIndex * 0.1 }}
                         >
                             {displaySymbols.map((symbolIndex, row) => {
-                                const isSticky = symbolIndex === 4; 
+                                const isSticky = symbolIndex === 4; // 9mm is sticky
                                 return (
                                     <motion.div
                                         key={row}
-                                        className={`h-20 w-24 flex items-center justify-center text-center px-1 text-[11px] font-black uppercase tracking-tighter transition-all duration-300 ${isSticky ? 'text-white bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)] border-y border-white/20' : isBonusMode ? 'text-slate-800' : 'text-amber-500'}`}
-                                        animate={isSpinning && isBonusMode && !isSticky ? { scale: [1, 0.9, 1], opacity: [0.6, 0.3, 0.6] } : {}}
+                                        className={`h-20 w-24 flex items-center justify-center text-center px-1 text-[11px] font-black uppercase tracking-tighter transition-all duration-300 ${isSticky ? 'text-white bg-red-600 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]' : isBonusMode ? 'text-slate-800' : 'text-amber-500'}`}
+                                        
+                                        // Bonus Animation: If it's spinning and NOT a sticky symbol, fade it in/out
+                                        animate={isSpinning && isBonusMode && !isSticky ? { scale: [1, 0.8, 1], opacity: [1, 0.3, 1] } : {}}
                                         transition={{ repeat: Infinity, duration: 0.2 }}
                                     >
+                                        {/* In bonus mode, empty spots show '?' */}
                                         {symbolIndex === 4 ? "9MM" : isBonusMode ? "?" : SYMBOLS[symbolIndex]}
                                     </motion.div>
                                 );
@@ -67,6 +74,8 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
                     )}
                 </AnimatePresence>
             </div>
+            
+            {/* Visual Overlays */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none" />
         </div>
     );
