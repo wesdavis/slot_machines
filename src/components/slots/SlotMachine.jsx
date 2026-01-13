@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Loader2, RotateCcw, Target, Zap } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
-import SlotReel, { SYMBOLS } from './SlotReel';
+import SlotReel from './SlotReel';
 import SpinDetails from './SpinDetails';
 
-// Coordinates for SVG Paylines (matching backend PAYLINES)
+// Coordinates for SVG Paylines
 const LINE_COORDS = [
     "M 0 120 L 600 120", // Line 1: Middle
     "M 0 40 L 600 40",   // Line 2: Top
@@ -46,6 +46,7 @@ export default function SlotMachine({ onSpinComplete }) {
     };
 
     const handleSpin = async () => {
+        if (isSpinning) return;
         setIsSpinning(true);
         setWinAmount(0);
         setWinDetails([]);
@@ -58,24 +59,31 @@ export default function SlotMachine({ onSpinComplete }) {
                 betAmount
             });
 
+            // Standard spin animation duration
             setTimeout(() => {
                 const { reelPositions: pos, winAmount: win, isFeatureTriggered: triggered, winDetails: details } = response.data;
                 setReelPositions(pos);
                 setWinAmount(win);
                 setWinDetails(details);
+                
                 if (triggered) {
                     setIsBonusActive(true);
                     setRespinCount(3);
                 }
+                
                 setLastSpinData({ ...response.data, clientSeed, nonce });
                 setNonce(n => n + 1);
                 setIsSpinning(false);
                 initializeServerSeed();
             }, 2000);
-        } catch (e) { setIsSpinning(false); }
+        } catch (e) { 
+            console.error(e);
+            setIsSpinning(false); 
+        }
     };
 
     const handleBonusSpin = async () => {
+        if (isSpinning) return;
         setIsSpinning(true);
         try {
             const response = await base44.functions.invoke('provablyFairSpin', {
@@ -88,29 +96,36 @@ export default function SlotMachine({ onSpinComplete }) {
             });
 
             setTimeout(() => {
-                const { reelPositions: nextGrid, newSymbolsAdded, currentBonusWin } = response.data;
+                const { reelPositions: nextGrid, newSymbolsAdded, currentBonusWin, isComplete } = response.data;
                 setReelPositions(nextGrid);
                 setWinAmount(currentBonusWin);
                 
-                if (newSymbolsAdded > 0) setRespinCount(3);
-                else setRespinCount(c => c - 1);
+                if (newSymbolsAdded > 0) {
+                    setRespinCount(3);
+                } else {
+                    setRespinCount(prev => prev - 1);
+                }
                 
-                if (respinCount <= 1 && newSymbolsAdded === 0) {
+                if (isComplete || (respinCount <= 1 && newSymbolsAdded === 0)) {
                     setIsBonusActive(false);
                     setIsFeatureTriggered(true);
                 }
+                
                 setNonce(n => n + 1);
                 setIsSpinning(false);
                 initializeServerSeed();
             }, 1000);
-        } catch (e) { setIsSpinning(false); }
+        } catch (e) { 
+            console.error(e);
+            setIsSpinning(false); 
+        }
     };
 
     return (
         <div className="space-y-6">
             <div className={`relative p-4 rounded-3xl border-4 transition-all duration-700 ${isBonusActive ? 'border-red-600 bg-black shadow-[0_0_60px_rgba(220,38,38,0.6)]' : 'border-amber-500 bg-slate-900 shadow-2xl'}`}>
                 
-                {/* Payline SVG Layer (Visible only when not spinning or in bonus) */}
+                {/* Payline SVG Layer */}
                 {!isSpinning && !isBonusActive && (
                     <svg className="absolute inset-0 w-full h-full z-10 pointer-events-none px-4 py-4" viewBox="0 0 600 240">
                         {LINE_COORDS.map((d, i) => (
@@ -166,7 +181,7 @@ export default function SlotMachine({ onSpinComplete }) {
                 <Button 
                     onClick={isBonusActive ? handleBonusSpin : handleSpin} 
                     disabled={isSpinning} 
-                    className={`w-full h-20 text-4xl font-black rounded-xl shadow-2xl transition-all ${isBonusActive ? 'bg-orange-600 hover:bg-orange-500' : 'bg-red-700 hover:bg-red-600 shadow-red-900/20'}`}
+                    className={`w-full h-20 text-4xl font-black rounded-xl shadow-2xl transition-all ${isBonusActive ? 'bg-orange-600 hover:bg-orange-500' : 'bg-red-700 hover:bg-red-600'}`}
                 >
                     {isSpinning ? <Loader2 className="w-10 h-10 animate-spin" /> : (isBonusActive ? <Zap className="w-10 h-10 mr-2" /> : <RotateCcw className="w-10 h-10 mr-2" />)}
                     {isSpinning ? "" : (isBonusActive ? "RESPIN" : "SPIN")}
