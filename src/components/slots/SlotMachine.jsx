@@ -29,7 +29,7 @@ export default function SlotMachine({ onSpinComplete }) {
     };
 
     const handleSpin = async () => {
-        if (isSpinning) return;
+        if (isSpinning || !pendingServerSeed) return;
         setIsSpinning(true);
         const response = await base44.functions.invoke('provablyFairSpin', {
             action: 'executeSpin',
@@ -54,7 +54,7 @@ export default function SlotMachine({ onSpinComplete }) {
     };
 
     const handleBonusSpin = async () => {
-        if (isSpinning) return;
+        if (isSpinning || !pendingServerSeed) return;
         setIsSpinning(true);
         const response = await base44.functions.invoke('provablyFairSpin', {
             action: 'executeBonusSpin',
