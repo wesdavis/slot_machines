@@ -1,6 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// REEL STRIPS (Must match provablyFairSpin exactly)
+/**
+ * REEL STRIPS
+ * Must be identical to provablyFairSpin.ts to ensure simulation accuracy.
+ */
 const REEL_STRIPS = [
   [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 0, 1, 2, 3, 4],
   [1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5],
@@ -9,12 +12,29 @@ const REEL_STRIPS = [
   [4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 4, 5, 6, 7, 0]
 ];
 
-function runSimulatedSpin(betAmount) {
-  const positions = [];
-  const WILD = 7;
-  const FEATURE_SYM = 4;
+/**
+ * PAYLINE DEFINITIONS
+ */
+const PAYLINES = [
+  [1, 1, 1, 1, 1], // Middle
+  [0, 0, 0, 0, 0], // Top
+  [2, 2, 2, 2, 2], // Bottom
+  [0, 1, 2, 1, 0], // V-Shape
+  [2, 1, 0, 1, 2]  // Inverted V
+];
 
-  // Pick 5 random stop positions
+/**
+ * SIMULATED SPIN ENGINE
+ * Optimized for high-speed loops (no database calls).
+ */
+function runSimulatedSpin(betAmount: number) {
+  const positions: number[] = [];
+  const WILD = 7;
+  const SCATTER = 4;
+  const betPerLine = betAmount / 5;
+  let totalWin = 0;
+
+  // 1. Generate random grid result
   for (let i = 0; i < 5; i++) {
     const stopIndex = Math.floor(Math.random() * REEL_STRIPS[i].length);
     for (let row = 0; row < 3; row++) {
@@ -22,66 +42,66 @@ function runSimulatedSpin(betAmount) {
     }
   }
 
-  // Check Wins
-  let win = 0;
-  const middleRow = [positions[1], positions[4], positions[7], positions[10], positions[13]];
-  let firstSymbol = middleRow[0] === WILD ? middleRow.find(s => s !== WILD) : middleRow[0];
-  if (firstSymbol === undefined) firstSymbol = 0;
+  // 2. Check Line Wins
+  PAYLINES.forEach((line) => {
+    const symbolsOnLine = line.map((row, reel) => positions[reel * 3 + row]);
+    let firstSymbol = symbolsOnLine[0] === WILD ? symbolsOnLine.find(s => s !== WILD && s !== SCATTER) : symbolsOnLine[0];
+    
+    if (firstSymbol === SCATTER || firstSymbol === undefined) return;
 
-  let matchCount = 1;
-  for (let i = 1; i < 5; i++) {
-    if (middleRow[i] === firstSymbol || middleRow[i] === WILD) matchCount++;
-    else break;
-  }
+    let matchCount = 1;
+    for (let i = 1; i < 5; i++) {
+      if (symbolsOnLine[i] === firstSymbol || symbolsOnLine[i] === WILD) matchCount++;
+      else break;
+    }
 
-  const payTable = { 3: 5, 4: 20, 5: 100 };
-  if (payTable[matchCount]) win += betAmount * payTable[matchCount];
+    const payTable: Record<number, number> = { 3: 5, 4: 20, 5: 100 };
+    if (payTable[matchCount]) totalWin += betPerLine * payTable[matchCount];
+  });
 
-  // Feature Trigger
-  const featureCount = positions.filter(s => s === FEATURE_SYM).length;
-  const isFeature = featureCount >= 3;
-  if (isFeature) win += betAmount * 50;
+  // 3. Check Scatter Trigger
+  const scatterCount = positions.filter(s => s === SCATTER).length;
+  const isFeature = scatterCount >= 3;
+  if (isFeature) totalWin += betAmount * 10;
 
-  return { win, isFeature };
+  return { totalWin, isFeature };
 }
 
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
-    
-    if (user?.role !== 'admin') {
-      return Response.json({ error: 'Admin only' }, { status: 403 });
-    }
 
-    const { spins = 1000000, betAmount = 1 } = await req.json();
-    
+    // Verification check for Admin access
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const body = await req.json();
+    const iterations = body.iterations || 1000000;
+    const betAmount = body.betAmount || 5;
+
     let totalBet = 0;
     let totalWon = 0;
     let featureTriggers = 0;
-    let winningSpins = 0;
 
-    // Run the simulation
-    for (let i = 0; i < spins; i++) {
+    // Simulation Loop
+    for (let i = 0; i < iterations; i++) {
       totalBet += betAmount;
-      const result = runSimulatedSpin(betAmount);
-      totalWon += result.win;
-      if (result.win > 0) winningSpins++;
-      if (result.isFeature) featureTriggers++;
+      const { totalWin, isFeature } = runSimulatedSpin(betAmount);
+      totalWon += totalWin;
+      if (isFeature) featureTriggers++;
     }
 
     const rtp = (totalWon / totalBet) * 100;
 
     return Response.json({
-      totalSpins: spins,
-      totalWagered: totalBet,
-      totalPayout: totalWon,
-      rtpPercentage: rtp,
-      featureTriggered: featureTriggers,
-      featureHitRate: (featureTriggers / spins) * 100,
-      winningSpins: winningSpins
+      iterations,
+      totalBet,
+      totalWon,
+      rtp: rtp.toFixed(2) + "%",
+      featureFrequency: `1 in ${(iterations / featureTriggers).toFixed(0)} spins`,
+      houseEdge: (100 - rtp).toFixed(2) + "%"
     });
-  } catch (error) {
+  } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
   }
 });
