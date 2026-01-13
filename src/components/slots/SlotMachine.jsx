@@ -4,11 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Sparkles, RotateCcw, Dices } from 'lucide-react';
+import { Loader2, Sparkles, RotateCcw, Dices, Trophy } from 'lucide-react';
 import { base44 } from "@/api/base44Client";
 import SlotReel, { SYMBOLS } from './SlotReel';
 import SpinDetails from './SpinDetails';
-import { Trophy, Sparkles } from 'lucide-react';
 
 export default function SlotMachine({ onSpinComplete }) {
     const [isSpinning, setIsSpinning] = useState(false);
@@ -119,7 +118,7 @@ export default function SlotMachine({ onSpinComplete }) {
                 
                 <div className="relative bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl p-4 sm:p-6 border-4 border-amber-500/50 shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
                     {/* Win indicator */}
-                    {winLines.length > 0 && (
+                    {winAmount > 0 && (
                         <motion.div
                             initial={{ scale: 0 }}
                             animate={{ scale: 1 }}
