@@ -23,11 +23,11 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
     }, [isSpinning, positions, reelIndex]);
 
     return (
-        <div className={`relative w-24 h-[240px] overflow-hidden rounded-xl border-2 transition-all duration-500 ${isBonusMode ? 'bg-black border-red-900/50' : 'bg-slate-950 border-amber-500/20'}`}>
+        <div className={`relative w-24 h-[240px] overflow-hidden rounded-xl border-2 transition-all duration-500 ${isBonusMode ? 'bg-slate-950 border-red-900/50 shadow-[inset_0_0_20px_rgba(220,38,38,0.2)]' : 'bg-slate-900 border-amber-500/20'}`}>
             <div className="absolute inset-0 flex flex-col items-center">
                 <AnimatePresence mode="wait">
                     {isSpinning && !isBonusMode ? (
-                        /* Standard Spin Animation: Visible symbols looping vertically */
+                        /* Standard Spin: Fast vertical loop */
                         <motion.div
                             key={`spinning-${spinKey}`}
                             className="flex flex-col"
@@ -36,13 +36,13 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
                             transition={{ duration: 0.15, repeat: Infinity, ease: "linear", delay: reelIndex * 0.05 }}
                         >
                             {[...Array(20)].map((_, i) => (
-                                <div key={i} className="h-20 w-24 flex items-center justify-center text-[10px] font-bold text-amber-500/40 italic uppercase">
+                                <div key={i} className="h-20 w-24 flex items-center justify-center text-[10px] font-bold text-amber-500/60 italic uppercase">
                                     {SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]}
                                 </div>
                             ))}
                         </motion.div>
                     ) : (
-                        /* Result/Bonus Grid */
+                        /* Bonus/Stopped View */
                         <motion.div
                             key="stopped"
                             className="flex flex-col"
@@ -51,12 +51,12 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
                             transition={{ type: "spring", stiffness: 400, damping: 20, delay: reelIndex * 0.1 }}
                         >
                             {displaySymbols.map((symbolIndex, row) => {
-                                const isSticky = symbolIndex === 4; // 9mm
+                                const isSticky = symbolIndex === 4; 
                                 return (
                                     <motion.div
                                         key={row}
                                         className={`h-20 w-24 flex items-center justify-center text-center px-1 text-[11px] font-black uppercase tracking-tighter transition-all duration-300 ${isSticky ? 'text-white bg-red-600 shadow-[0_0_15px_rgba(220,38,38,0.5)] border-y border-white/20' : isBonusMode ? 'text-slate-800' : 'text-amber-500'}`}
-                                        animate={isSpinning && isBonusMode && !isSticky ? { scale: [1, 0.9, 1], opacity: [0.5, 0.2, 0.5] } : {}}
+                                        animate={isSpinning && isBonusMode && !isSticky ? { scale: [1, 0.9, 1], opacity: [0.6, 0.3, 0.6] } : {}}
                                         transition={{ repeat: Infinity, duration: 0.2 }}
                                     >
                                         {symbolIndex === 4 ? "9MM" : isBonusMode ? "?" : SYMBOLS[symbolIndex]}
@@ -67,10 +67,7 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
                     )}
                 </AnimatePresence>
             </div>
-            
-            {/* Glossy Overlay */}
             <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none" />
-            <div className="absolute inset-y-0 left-0 w-px bg-white/5 pointer-events-none" />
         </div>
     );
 }
