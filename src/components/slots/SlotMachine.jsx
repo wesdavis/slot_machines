@@ -1,14 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/cite: components/ui/button";
+import { Input } from "@/cite: components/ui/input";
+import { Label } from "@/cite: components/ui/label";
+import { Badge } from "@/cite: components/ui/badge";
 import { Loader2, Sparkles, RotateCcw, Dices, Trophy } from 'lucide-react';
-import { base44 } from "@/api/base44Client";
-import SlotReel, { SYMBOLS } from './SlotReel';
+import { base44 } from "@/cite: api/base44Client";
+import SlotReel from './SlotReel';
 import SpinDetails from './SpinDetails';
-import BonusOverlay from './BonusOverlay';
 
 export default function SlotMachine({ onSpinComplete }) {
     const [isSpinning, setIsSpinning] = useState(false);
@@ -22,27 +21,21 @@ export default function SlotMachine({ onSpinComplete }) {
     const [winDetails, setWinDetails] = useState([]);
     const [isFeatureTriggered, setIsFeatureTriggered] = useState(false);
     const [loading, setLoading] = useState(false);
-    const [betAmount, setBetAmount] = useState(1);
-    const [showBonus, setShowBonus] = useState(false);
-    const [activePaylines, setActivePaylines] = useState([]);
+    const [betAmount, setBetAmount] = useState(5); // Default to 5 for 1 per line
 
-    // Initialize server seed on mount
     useEffect(() => {
         initializeServerSeed();
-        // Generate random client seed
         setClientSeed(Math.random().toString(36).substring(2, 15));
     }, []);
 
     const initializeServerSeed = async () => {
         setLoading(true);
         try {
-            const response = await base44.functions.invoke('provablyFairSpin', {
-                action: 'initSpin'
-            });
+            const response = await base44.functions.invoke('provablyFairSpin', { action: 'initSpin' });
             setPendingServerSeed(response.data.serverSeed);
             setPendingHash(response.data.serverSeedHash);
         } catch (error) {
-            console.error('Failed to init:', error);
+            console.error('Init failed:', error);
         } finally {
             setLoading(false);
         }
@@ -50,13 +43,10 @@ export default function SlotMachine({ onSpinComplete }) {
 
     const handleSpin = async () => {
         if (!clientSeed || !pendingServerSeed) return;
-
         setIsSpinning(true);
         setWinAmount(0);
         setWinDetails([]);
         setIsFeatureTriggered(false);
-        setActivePaylines([]);
-        setShowBonus(false);
 
         try {
             const response = await base44.functions.invoke('provablyFairSpin', {
@@ -67,259 +57,89 @@ export default function SlotMachine({ onSpinComplete }) {
                 betAmount
             });
 
-            const { 
-                reelPositions: newPositions, 
-                winAmount: totalWin,
-                winDetails: details,
-                isFeatureTriggered: featureTriggered,
-                ...spinData 
-            } = response.data;
+            const { reelPositions: newPositions, winAmount: totalWin, winDetails: details, isFeatureTriggered: featureTriggered, ...spinData } = response.data;
 
-            // Delay showing results for animation
             setTimeout(() => {
                 setReelPositions(newPositions);
-                setLastSpinData({ ...spinData, reelPositions: newPositions, winAmount: totalWin });
                 setWinAmount(totalWin);
                 setWinDetails(details);
                 setIsFeatureTriggered(featureTriggered);
+                setLastSpinData({ ...spinData, reelPositions: newPositions, winAmount: totalWin });
                 setNonce(prev => prev + 1);
-
-                // Extract and animate paylines
-                const lineWins = details.filter(d => d.type === 'line');
-                setActivePaylines(lineWins.map(w => w.line));
-
-                // Show bonus overlay if feature triggered
-                if (featureTriggered) {
-                    setTimeout(() => setShowBonus(true), 500);
-                }
-
-                // Get new server seed for next spin
                 initializeServerSeed();
-                
-                if (onSpinComplete) {
-                    onSpinComplete({ 
-                        ...spinData, 
-                        reelPositions: newPositions, 
-                        winAmount: totalWin,
-                        winDetails: details,
-                        isFeatureTriggered: featureTriggered
-                    });
-                }
+                if (onSpinComplete) onSpinComplete({ ...spinData, reelPositions: newPositions, winAmount: totalWin, winDetails: details, isFeatureTriggered: featureTriggered });
             }, 2000);
 
-            // Stop spinning animation
-            setTimeout(() => {
-                setIsSpinning(false);
-            }, 2500);
-
+            setTimeout(() => setIsSpinning(false), 2500);
         } catch (error) {
             console.error('Spin failed:', error);
             setIsSpinning(false);
         }
     };
 
-    const randomizeClientSeed = () => {
-        setClientSeed(Math.random().toString(36).substring(2, 15));
-    };
-
     return (
         <div className="space-y-6">
-            {/* Slot Machine Frame */}
             <div className="relative">
-                {/* Decorative frame */}
                 <div className="absolute -inset-4 bg-gradient-to-b from-amber-600 via-yellow-500 to-amber-700 rounded-3xl opacity-80 blur-sm" />
-                <div className="absolute -inset-3 bg-gradient-to-b from-amber-500 to-yellow-600 rounded-2xl" />
-                
-                <div className="relative bg-gradient-to-b from-slate-800 to-slate-900 rounded-xl p-4 sm:p-6 border-4 border-amber-500/50 shadow-[inset_0_0_50px_rgba(0,0,0,0.5)]">
-                    {/* Win indicator */}
+                <div className="relative bg-slate-900 rounded-xl p-6 border-4 border-amber-500/50 shadow-2xl">
+                    <div className="flex gap-2 justify-center">
+                        {[0, 1, 2, 3, 4].map((i) => (
+                            <SlotReel key={i} positions={reelPositions} isSpinning={isSpinning} reelIndex={i} />
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="bg-slate-900/80 p-4 rounded-xl border border-amber-500/20 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <Label className="text-xs text-slate-400">Total Bet (5 Lines)</Label>
+                        <Input type="number" value={betAmount} onChange={(e) => setBetAmount(parseInt(e.target.value))} className="h-8 bg-slate-800" />
+                    </div>
+                    <div className="space-y-1">
+                        <Label className="text-xs text-slate-400">Client Seed</Label>
+                        <Input value={clientSeed} onChange={(e) => setClientSeed(e.target.value)} className="h-8 bg-slate-800 font-mono text-xs" />
+                    </div>
+                </div>
+
+                <Button onClick={handleSpin} disabled={isSpinning || loading} className="w-full h-12 bg-red-600 hover:bg-red-700 font-bold">
+                    {isSpinning ? <Loader2 className="animate-spin" /> : "SPIN"}
+                </Button>
+
+                <AnimatePresence>
                     {winAmount > 0 && (
-                        <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute -top-4 left-1/2 -translate-x-1/2 z-20"
-                        >
-                            <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-1 text-lg animate-pulse">
-                                <Sparkles className="w-4 h-4 mr-1" />
-                                WIN!
-                            </Badge>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="p-3 bg-green-500/10 border border-green-500/50 rounded-lg">
+                            <div className="flex justify-between items-center text-green-400 font-bold">
+                                <span>TOTAL WIN</span>
+                                <span>{winAmount}x</span>
+                            </div>
                         </motion.div>
                     )}
-
-                    {/* Reels container */}
-                    <div className="flex gap-2 sm:gap-3 justify-center">
-                        {[0, 1, 2, 3, 4].map((reelIndex) => (
-                            <SlotReel
-                                key={reelIndex}
-                                positions={reelPositions}
-                                isSpinning={isSpinning}
-                                reelIndex={reelIndex}
-                            />
-                        ))}
-                    </div>
-
-                    {/* Payline indicators */}
-                    <AnimatePresence>
-                        {activePaylines.map((lineNum, idx) => {
-                            const lineConfigs = {
-                                0: { top: '50%', className: '-translate-y-1/2' },
-                                1: { top: '16.66%', className: '' },
-                                2: { top: '83.33%', className: '' },
-                                3: { path: 'M 0,16.66 L 25,50 L 50,83.33 L 75,50 L 100,16.66' },
-                                4: { path: 'M 0,83.33 L 25,50 L 50,16.66 L 75,50 L 100,83.33' }
-                            };
-                            const config = lineConfigs[lineNum];
-                            
-                            return config.path ? (
-                                <motion.svg
-                                    key={lineNum}
-                                    className="absolute inset-0 w-full h-full pointer-events-none"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: [0, 1, 0] }}
-                                    transition={{ duration: 1.5, repeat: 2, delay: idx * 0.2 }}
-                                >
-                                    <path
-                                        d={config.path}
-                                        stroke="#fbbf24"
-                                        strokeWidth="3"
-                                        fill="none"
-                                        vectorEffect="non-scaling-stroke"
-                                    />
-                                </motion.svg>
-                            ) : (
-                                <motion.div
-                                    key={lineNum}
-                                    className={`absolute left-2 right-2 h-1 bg-amber-400 pointer-events-none rounded-full ${config.className}`}
-                                    style={{ top: config.top }}
-                                    initial={{ opacity: 0, scaleX: 0 }}
-                                    animate={{ opacity: [0, 1, 0], scaleX: [0, 1, 1] }}
-                                    transition={{ duration: 1.5, repeat: 2, delay: idx * 0.2 }}
-                                />
-                            );
-                        })}
-                    </AnimatePresence>
-                </div>
+                </AnimatePresence>
             </div>
 
-            {/* Bonus Overlay */}
-            <BonusOverlay
-                isTriggered={showBonus}
-                winDetails={winDetails}
-                onClose={() => setShowBonus(false)}
-            />
-
-            {/* Controls */}
-            <div className="bg-slate-900/80 backdrop-blur-sm rounded-xl p-4 border border-amber-500/20 space-y-4">
-                {/* Bet Amount */}
-                <div className="space-y-2">
-                    <Label className="text-slate-300 text-sm">Bet Amount</Label>
-                    <Input
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={betAmount}
-                        onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 1))}
-                        className="bg-slate-800 border-slate-700 text-slate-200"
-                        disabled={isSpinning}
-                    />
-                </div>
-
-                {/* Client Seed Input */}
-                <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                        <Label className="text-slate-300 text-sm">Your Seed (Client Seed)</Label>
-                        <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={randomizeClientSeed}
-                            className="text-amber-400 hover:text-amber-300 h-7"
-                        >
-                            <Dices className="w-3 h-3 mr-1" />
-                            Randomize
-                        </Button>
-                    </div>
-                    <Input
-                        value={clientSeed}
-                        onChange={(e) => setClientSeed(e.target.value)}
-                        placeholder="Enter your seed..."
-                        className="bg-slate-800 border-slate-700 text-slate-200 font-mono"
-                        disabled={isSpinning}
-                    />
-                </div>
-
-                {/* Nonce display */}
-                <div className="flex items-center justify-between text-sm">
-                    <span className="text-slate-500">Spin #:</span>
-                    <Badge variant="outline" className="border-slate-600 text-slate-300 font-mono">
-                        {nonce}
-                    </Badge>
-                </div>
-
-                {/* Win display */}
-                {winAmount > 0 && (
-                    <motion.div
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border border-green-500/50 rounded-lg p-4"
+            {/* Hold & Win Bonus Overlay */}
+            <AnimatePresence>
+                {isFeatureTriggered && (
+                    <motion.div 
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl"
                     >
-                        <div className="flex items-center justify-between mb-2">
-                            <span className="text-green-400 font-semibold flex items-center gap-2">
-                                <Trophy className="w-5 h-5" />
-                                Total Win
-                            </span>
-                            <span className="text-2xl font-bold text-green-400">
-                                {winAmount}x
-                            </span>
+                        <div className="text-center p-12 border-4 border-amber-500 rounded-[40px] bg-slate-900 shadow-[0_0_100px_rgba(245,158,11,0.3)]">
+                            <h2 className="text-6xl font-black text-amber-400 mb-2 italic">BUSINESS MEETING</h2>
+                            <p className="text-slate-400 text-xl tracking-widest mb-8">HOLD & WIN ACTIVATED</p>
+                            <div className="text-8xl font-black text-green-400 mb-8 drop-shadow-lg">+{winAmount}x</div>
+                            <Button onClick={() => setIsFeatureTriggered(false)} className="bg-amber-500 text-slate-950 font-black px-12 py-8 text-2xl rounded-2xl hover:bg-amber-400">
+                                COLLECT
+                            </Button>
                         </div>
-                        {winDetails.map((detail, i) => (
-                            <div key={i} className="flex justify-between text-sm text-slate-300 mt-1">
-                                <span>
-                                    {detail.type === 'line' ? `🎯 Line ${detail.line + 1}` : '✨ Hold & Win'} - {detail.symbol} {detail.type === 'line' ? `x${detail.count}` : ''}
-                                </span>
-                                <span className="text-green-400">{detail.payout.toFixed(2)}x</span>
-                            </div>
-                        ))}
-                        {isFeatureTriggered && (
-                            <div className="mt-2 pt-2 border-t border-green-500/30">
-                                <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 animate-pulse">
-                                    <Sparkles className="w-3 h-3 mr-1" />
-                                    FEATURE TRIGGERED!
-                                </Badge>
-                            </div>
-                        )}
                     </motion.div>
                 )}
+            </AnimatePresence>
 
-                {/* Spin Button */}
-                <Button
-                    onClick={handleSpin}
-                    disabled={isSpinning || loading || !clientSeed}
-                    className="w-full h-14 text-xl font-bold bg-gradient-to-r from-red-600 via-red-500 to-red-600 hover:from-red-700 hover:via-red-600 hover:to-red-700 shadow-lg shadow-red-500/30 disabled:opacity-50"
-                >
-                    {isSpinning ? (
-                        <>
-                            <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                            SPINNING...
-                        </>
-                    ) : loading ? (
-                        <>
-                            <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                            PREPARING...
-                        </>
-                    ) : (
-                        <>
-                            <RotateCcw className="w-6 h-6 mr-2" />
-                            SPIN
-                        </>
-                    )}
-                </Button>
-            </div>
-
-            {/* Cryptographic Details */}
-            <SpinDetails
-                spinData={lastSpinData}
-                pendingHash={pendingHash}
-                isSpinning={isSpinning}
-            />
+            <SpinDetails spinData={lastSpinData} pendingHash={pendingHash} isSpinning={isSpinning} />
         </div>
     );
 }
