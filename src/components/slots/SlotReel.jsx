@@ -55,7 +55,7 @@ export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode
                                 return (
                                     <motion.div
                                         key={row}
-                                        className={`h-20 w-24 flex items-center justify-center text-center px-1 text-[11px] font-black uppercase tracking-tighter transition-all duration-300 ${isSticky ? 'text-white bg-red-600 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]' : isBonusMode ? 'text-transparent' : 'text-amber-500'}`}
+                                        className={`h-20 w-24 flex items-center justify-center text-center px-1 text-[11px] font-black uppercase tracking-tighter transition-all duration-300 ${isSticky ? 'text-white bg-red-600 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]' : isBonusMode ? 'text-slate-700' : 'text-amber-500'}`}
                                         animate={isSpinning && isBonusMode && !isSticky ? { scale: [1, 0.9, 1], opacity: [1, 0.4, 1], rotate: [0, 5, -5, 0] } : {}}
                                         transition={{ repeat: Infinity, duration: 0.2 }}
                                     >

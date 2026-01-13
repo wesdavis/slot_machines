@@ -100,13 +100,16 @@ export default function SlotMachine({ onSpinComplete }) {
                 setReelPositions(nextGrid);
                 setWinAmount(currentBonusWin);
                 
+                let newRespinCount;
                 if (newSymbolsAdded > 0) {
+                    newRespinCount = 3;
                     setRespinCount(3);
                 } else {
-                    setRespinCount(prev => prev - 1);
+                    newRespinCount = respinCount - 1;
+                    setRespinCount(newRespinCount);
                 }
                 
-                if (isComplete || (respinCount <= 1 && newSymbolsAdded === 0)) {
+                if (isComplete || (newRespinCount <= 0 && newSymbolsAdded === 0)) {
                     setIsBonusActive(false);
                     setIsFeatureTriggered(true);
                 }
@@ -170,7 +173,7 @@ export default function SlotMachine({ onSpinComplete }) {
                 <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                         <Label className="text-amber-400 font-bold uppercase text-xs tracking-widest">Total Stake</Label>
-                        <Input type="number" value={betAmount} onChange={(e) => setBetAmount(parseInt(e.target.value))} className="bg-slate-800 border-slate-700 text-amber-500 font-black text-xl h-12" disabled={isSpinning || isBonusActive} />
+                        <Input type="number" value={betAmount} onChange={(e) => setBetAmount(Math.max(1, parseInt(e.target.value) || 1))} min="1" className="bg-slate-800 border-slate-700 text-amber-500 font-black text-xl h-12" disabled={isSpinning || isBonusActive} />
                     </div>
                     <div className="space-y-2">
                         <Label className="text-amber-400 font-bold uppercase text-xs tracking-widest">Client Seed</Label>

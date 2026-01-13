@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
 
             for (let i = 0; i < 15; i++) {
                 if (nextGrid[i] !== 4) { // roll only for non-9mm spots
-                    const randVal = parseInt(combinedHash.substring((i % 8) * 4, (i % 8) * 4 + 4), 16) % 100;
+                    const randVal = parseInt(combinedHash.substring(i * 2, i * 2 + 4), 16) % 100;
                     if (randVal < 15) { 
                         nextGrid[i] = 4;
                         newSymbolsAdded++;
@@ -110,12 +110,13 @@ Deno.serve(async (req) => {
 
             const finalS5Count = nextGrid.filter(s => s === 4).length;
             const currentBonusWin = finalS5Count * (bet * 1.5);
+            const isComplete = finalS5Count >= 15;
 
             return Response.json({
                 reelPositions: nextGrid,
                 newSymbolsAdded,
                 currentBonusWin,
-                isComplete: !nextGrid.includes(0) && nextGrid.every(s => s === 4)
+                isComplete
             });
         }
 
