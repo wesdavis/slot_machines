@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// Updated Theme
 export const SYMBOLS = ['Tony', 'Paulie', 'Silvio', 'Gabagool', '9mm', 'AJ', 'Meadow', 'BadaBing'];
 
-export default function SlotReel({ positions, isSpinning, reelIndex }) {
+export default function SlotReel({ positions, isSpinning, reelIndex, isBonusMode }) {
     const [displaySymbols, setDisplaySymbols] = useState([0, 1, 2]);
     const [spinKey, setSpinKey] = useState(0);
 
@@ -24,39 +23,54 @@ export default function SlotReel({ positions, isSpinning, reelIndex }) {
     }, [isSpinning, positions, reelIndex]);
 
     return (
-        <div className="relative w-20 sm:w-24 h-60 sm:h-72 overflow-hidden rounded-lg bg-slate-950 border-2 border-amber-500/30">
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <div className={`relative w-24 h-[240px] overflow-hidden rounded-xl border-2 transition-all duration-500 ${isBonusMode ? 'bg-black border-red-900/50' : 'bg-slate-950 border-amber-500/20'}`}>
+            <div className="absolute inset-0 flex flex-col items-center">
                 <AnimatePresence mode="wait">
-                    {isSpinning ? (
+                    {isSpinning && !isBonusMode ? (
+                        /* NORMAL SPIN ANIMATION: High speed vertical blur */
                         <motion.div
                             key={`spinning-${spinKey}`}
+                            className="flex flex-col gap-0"
                             initial={{ y: 0 }}
-                            animate={{ y: [-300, 0] }}
-                            transition={{ duration: 0.1, repeat: Infinity, ease: "linear", delay: reelIndex * 0.05 }}
+                            animate={{ y: [-800, 0] }}
+                            transition={{ duration: 0.12, repeat: Infinity, ease: "linear", delay: reelIndex * 0.05 }}
                         >
-                            {[...Array(6)].map((_, i) => (
-                                <div key={i} className="h-20 flex items-center justify-center text-[10px] font-bold text-amber-400">
+                            {[...Array(12)].map((_, i) => (
+                                <div key={i} className="h-20 w-24 flex items-center justify-center text-[10px] font-bold text-slate-800 italic opacity-40 uppercase">
                                     {SYMBOLS[Math.floor(Math.random() * SYMBOLS.length)]}
                                 </div>
                             ))}
                         </motion.div>
                     ) : (
+                        /* STOPPED OR BONUS MODE: Individual Static/Sticky Symbols */
                         <motion.div
                             key="stopped"
-                            initial={{ y: -20 }}
+                            className="flex flex-col gap-0"
+                            initial={isBonusMode ? false : { y: -40 }}
                             animate={{ y: 0 }}
-                            transition={{ type: "spring", stiffness: 300, damping: 15, delay: reelIndex * 0.1 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20, delay: reelIndex * 0.1 }}
                         >
-                            {displaySymbols.map((symbolIndex, row) => (
-                                <div key={row} className="h-20 flex items-center justify-center text-xs font-black text-amber-400 tracking-tighter uppercase">
-                                    {SYMBOLS[symbolIndex]}
-                                </div>
-                            ))}
+                            {displaySymbols.map((symbolIndex, row) => {
+                                const isSticky = symbolIndex === 4; // 9mm
+                                return (
+                                    <motion.div
+                                        key={row}
+                                        className={`h-20 w-24 flex items-center justify-center text-center px-1 text-[11px] font-black uppercase tracking-tighter transition-all duration-300 ${isSticky ? 'text-white bg-red-600 shadow-[inset_0_0_20px_rgba(0,0,0,0.5)]' : isBonusMode ? 'text-transparent' : 'text-amber-500'}`}
+                                        animate={isSpinning && isBonusMode && !isSticky ? { scale: [1, 0.8, 1], opacity: [1, 0.3, 1] } : {}}
+                                        transition={{ repeat: Infinity, duration: 0.15 }}
+                                    >
+                                        {symbolIndex === 4 ? "9MM" : SYMBOLS[symbolIndex]}
+                                    </motion.div>
+                                );
+                            })}
                         </motion.div>
                     )}
                 </AnimatePresence>
             </div>
-            <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/40 pointer-events-none" />
+            
+            {/* Visual Overlays */}
+            <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/80 pointer-events-none" />
+            <div className="absolute inset-0 border-x border-white/5 pointer-events-none" />
         </div>
     );
 }
