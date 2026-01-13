@@ -50,8 +50,8 @@ function checkWins(positions: number[], betAmount = 1) {
         }
     });
 
-    const s5Count = positions.filter(s => s === SCATTER_S5).length;
-    const isHoldAndWinTriggered = s5Count >= 6; // Mandatory 6 to trigger
+    const s5Count = positions.filter(s => s === 4).length;
+    const isHoldAndWinTriggered = s5Count >= 6; // STATED REQUIREMENT: 6
 
     return { totalWin, winDetails, isHoldAndWinTriggered, s5Count };
 }
@@ -100,8 +100,8 @@ Deno.serve(async (req) => {
 
             for (let i = 0; i < 15; i++) {
                 if (nextGrid[i] !== 4) { 
-                    const randVal = parseInt(combinedHash.substring((i % 8) * 4, (i % 8) * 4 + 4), 16) % 100;
-                    if (randVal < 15) { // 15% chance to land a new 9mm
+                    const randVal = parseInt(combinedHash.substring((i % 8) * 2, (i % 8) * 2 + 2), 16) % 100;
+                    if (randVal < 15) { 
                         nextGrid[i] = 4;
                         newSymbolsAdded++;
                     }
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
                 reelPositions: nextGrid,
                 newSymbolsAdded,
                 currentBonusWin,
-                isComplete: !nextGrid.includes(0) && nextGrid.every(s => s === 4)
+                isComplete: finalS5Count === 15 || (newSymbolsAdded === 0 && body.lastRespin)
             });
         }
 
