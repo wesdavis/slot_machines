@@ -68,6 +68,13 @@ export default function SlotMachine({ onSpinComplete }) {
                     setRespinCount(3);
                 }
                 
+                onSpinComplete?.({
+                    serverSeed: pendingServerSeed,
+                    clientSeed,
+                    nonce,
+                    reelPositions: pos,
+                    winAmount: win
+                });
                 setNonce(n => n + 1);
                 setIsSpinning(false);
                 initializeServerSeed();
@@ -105,6 +112,13 @@ export default function SlotMachine({ onSpinComplete }) {
                         setIsFeatureTriggered(true); // Show payout
                     }
                 }
+                onSpinComplete?.({
+                    serverSeed: pendingServerSeed,
+                    clientSeed,
+                    nonce,
+                    reelPositions: nextGrid,
+                    winAmount: currentBonusWin
+                });
                 setNonce(n => n + 1);
                 setIsSpinning(false);
                 initializeServerSeed();
@@ -194,7 +208,7 @@ export default function SlotMachine({ onSpinComplete }) {
                 )}
             </AnimatePresence>
 
-            <SpinDetails spinData={lastSpinData} pendingHash={pendingHash} isSpinning={isSpinning} />
+
         </div>
     );
 }
